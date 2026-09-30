@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  # Déclenché sur toute branche : le nom de la branche par défaut ne doit
+  # jamais conditionner l'exécution de la CI.
   push:
-    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 
