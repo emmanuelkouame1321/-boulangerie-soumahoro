@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/*
+|--------------------------------------------------------------------------
+| DESIGN TOKENS — Boulangerie Soumahoro
+|--------------------------------------------------------------------------
+| Source de vérité : design_system_boulangerie_soumahoro.md §3, §7, §8, §58.
+| Ne jamais écrire une couleur, un rayon ou une ombre en dur dans une vue.
+| Ajouter le token ici, puis l'utiliser.
+*/
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Palette marque — brun cacao / crème chaud / ambre pain */
+    --color-brand-50: #fff8ed;
+    --color-brand-100: #fcefd9;
+    --color-brand-200: #f7ddb3;
+    --color-brand-300: #efc27e;
+    --color-brand-400: #dfa04d;
+    --color-brand-500: #c98332;
+    --color-brand-600: #a96325;
+    --color-brand-700: #874b20;
+    --color-brand-800: #66361d;
+    --color-brand-900: #432318;
+
+    /* Surfaces */
+    --color-surface: #ffffff;
+    --color-canvas: #f8f7f4;
+    --color-subtle: #f1efea;
+    --color-line: #e6e1d8;
+
+    /* Texte */
+    --color-ink: #211e1a;
+    --color-muted: #706b63;
+    --color-soft: #99938a;
+
+    /* États */
+    --color-success: #2f7d52;
+    --color-success-bg: #eaf6ee;
+    --color-warning: #b7791f;
+    --color-warning-bg: #fff5dd;
+    --color-danger: #c84a4a;
+    --color-danger-bg: #fdecec;
+    --color-info: #3f6fa3;
+    --color-info-bg: #eaf2fb;
+    --color-neutral: #706b63;
+    --color-neutral-bg: #f1efea;
+
+    /* Rayons */
+    --radius-card: 12px;
+    --radius-modal: 16px;
+
+    /* Ombres — le design repose sur surfaces + bordures, pas d'ombres fortes */
+    --shadow-card: 0 1px 2px rgb(33 30 26 / 0.04);
+    --shadow-elevated: 0 8px 24px rgb(33 30 26 / 0.1);
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        @apply bg-canvas text-ink font-sans antialiased;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* Focus visible global — accessibilité WCAG 2.2 AA (Design System §53) */
+    :focus-visible {
+        @apply outline-2 outline-offset-2 outline-brand-600;
+    }
+
+    /* Évite le flash des éléments Alpine non initialisés */
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /* Chiffres financiers et métriques — tabular-nums (Design System §5.1) */
+    .numeric {
+        font-variant-numeric: tabular-nums;
+    }
+}

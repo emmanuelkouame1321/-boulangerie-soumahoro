@@ -1,0 +1,20 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - app
+        - database
+        - routes
+        - tests
+
+    excludePaths:
+        - vendor
+        - storage
+        - bootstrap/cache
+        - database/migrations/*_create_permission_tables.php
+
+    # Larastan : comprendre les helpers et les casts Eloquent.
+    treatPhpDocTypesAsCertain: false

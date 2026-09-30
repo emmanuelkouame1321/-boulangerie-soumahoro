@@ -1,0 +1,162 @@
+# Boulangerie Soumahoro — Logiciel de gestion
+
+ERP métier multi-sites pour boulangerie : achats, stock matières, recettes,
+production, produits finis et lots, ventes, pertes, grossistes et
+ristournes, employés, paie, charges, rapports et audit.
+
+> **Produire juste. Vendre mieux. Piloter simplement.**
+
+---
+
+## Documentation de référence
+
+| Fichier | Rôle |
+|---|---|
+| [`cahier_des_charges_gestion_boulangerie.md`](cahier_des_charges_gestion_boulangerie.md) | Règles métier, données, workflows, architecture — **source de vérité n° 1** |
+| [`design_system_boulangerie_soumahoro.md`](design_system_boulangerie_soumahoro.md) | Tokens, composants, états, accessibilité — **source de vérité UI/UX** |
+| [`prototype_boulangerie_soumahoro/`](prototype_boulangerie_soumahoro) | Prototype navigable — référence d'interaction |
+| [`AGENTS.md`](AGENTS.md) | Manuel d'exploitation pour le développement automatisé |
+| [`ROADMAP.md`](ROADMAP.md) | Plan de développement par phases |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Découpage des couches et motifs obligatoires |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Journal des décisions et hypothèses ouvertes |
+
+---
+
+## Stack
+
+- **PHP 8.2+** · **Laravel 12**
+- **Blade + Livewire 4** (pas de SPA)
+- **Tailwind CSS 4** — les tokens du design system vivent dans
+  `resources/css/app.css`
+- **MySQL / MariaDB** en développement (PostgreSQL visé en production)
+- **spatie/laravel-permission** pour rôles et permissions
+- **PHPUnit 11**, **Larastan 3**, **Laravel Pint**
+
+---
+
+## Prérequis
+
+- PHP 8.2 ou supérieur avec les extensions `pdo_mysql`, `mbstring`,
+  `openssl`, `intl`
+- Composer 2
+- Node.js 20+ et npm
+- MySQL / MariaDB (XAMPP fonctionne)
+
+---
+
+## Installation
+
+```bash
+composer setup
+```
+
+Cette commande installe les dépendances PHP et JS, crée le `.env`, génère
+la clé d'application, joue les migrations et les seeders, puis construit
+les assets.
+
+### Manuellement
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+
+# Créer la base
+mysql -u root -e "CREATE DATABASE boulangerie_soumahoro CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+php artisan migrate --seed
+npm install && npm run build
+```
+
+---
+
+## Lancer le projet
+
+```bash
+composer dev
+```
+
+Démarre en parallèle le serveur HTTP, la queue, les logs (`pail`) et Vite.
+
+L'application est ensuite disponible sur <http://localhost:8000>.
+
+### Compte de démarrage (environnement local uniquement)
+
+| | |
+|---|---|
+| Email | `admin@soumahoro.test` |
+| Mot de passe | `password` |
+| Rôle | Super-Admin |
+
+Personnalisable via `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD` dans
+`.env`. Ce compte n'est **jamais** créé hors `local` / `testing`.
+
+---
+
+## Commandes
+
+| Commande | Effet |
+|---|---|
+| `composer dev` | Serveur + queue + logs + Vite |
+| `composer test` | Suite de tests |
+| `composer analyse` | Analyse statique (Larastan niveau 5) |
+| `composer lint` | Vérification du style (Pint) |
+| `composer format` | Correction automatique du style |
+| `composer ci` | `analyse` + `lint` + `test` — à lancer avant de conclure |
+| `npm run build` | Assets de production |
+| `npm run dev` | Vite en mode watch |
+
+---
+
+## Structure
+
+```
+app/
+├── Domain/        règles métier, un dossier par module
+├── Enums/         types fermés (Role, ProductType, StockMovementType)
+├── Livewire/      composants Livewire (sans logique métier)
+├── Models/        Eloquent
+├── Support/       Format, Navigation
+└── ...
+
+config/
+├── boulangerie.php   valeurs métier configurables — à ne pas coder en dur
+└── navigation.php    menu applicatif
+
+resources/
+├── css/app.css               tokens du design system
+├── js/app.js
+└── views/
+    ├── components/ui/        primitives
+    ├── components/layout/    AppShell, sidebar, topbar, page-header
+    ├── components/layouts/   gabarit HTML
+    └── <module>/             pages
+```
+
+---
+
+## Principes non négociables
+
+1. Une seule source de vérité pour le stock — tout passe par un mouvement.
+2. Toute variation de stock est traçable et jamais supprimée.
+3. Les opérations critiques sont transactionnelles et idempotentes.
+4. Les permissions sont contrôlées côté serveur.
+5. Les sites sont isolés par défaut.
+6. Les paramètres métier ne sont jamais codés en dur.
+7. La logique métier n'est jamais dans une vue ni dans un composant UI.
+
+Détail complet dans [`AGENTS.md`](AGENTS.md) §7 et
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## Contribuer / poursuivre le développement
+
+Le projet est conçu pour avancer **phase par phase, de façon autonome** :
+
+1. ouvrir [`ROADMAP.md`](ROADMAP.md) ;
+2. prendre la première case non cochée ;
+3. suivre la boucle de travail de [`AGENTS.md`](AGENTS.md) §5 ;
+4. cocher la case et continuer.
+
+Chaque session doit se terminer avec `composer ci` vert.
