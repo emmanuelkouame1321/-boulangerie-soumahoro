@@ -6,7 +6,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -48,5 +50,40 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Sites auxquels l'utilisateur est affecté (cahier §20.4).
+     *
+     * Un utilisateur peut être autorisé sur plusieurs sites ; `is_default`
+     * désigne le site ouvert par défaut.
+     *
+     * @return BelongsToMany<Bakery, $this>
+     */
+    public function bakeries(): BelongsToMany
+    {
+        return $this->belongsToMany(Bakery::class)
+            ->withPivot('is_default')
+            ->withTimestamps();
+    }
+
+    /**
+     * L'utilisateur est-il affecté à ce site ?
+     */
+    public function canAccessBakery(Bakery $bakery): bool
+    {
+        return $this->bakeries()
+            ->whereKey($bakery->getKey())
+            ->exists();
+    }
+
+    /**
+     * Sites dont l'utilisateur est responsable.
+     *
+     * @return Collection<int, Bakery>
+     */
+    public function managedBakeries()
+    {
+        return Bakery::query()->where('manager_id', $this->getKey())->get();
     }
 }

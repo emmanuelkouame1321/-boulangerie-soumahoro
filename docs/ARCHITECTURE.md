@@ -48,6 +48,27 @@ App\Domain\Payroll\PayrollService
 App\Domain\Reporting\ReportingService
 ```
 
+## 3 bis. Convention Livewire
+
+Livewire 4 génère par défaut des composants **mono-fichier** dans
+`resources/views/components/`. Le projet utilise volontairement les
+composants **classiques**, plus lisibles, plus testables avec
+`Livewire::test()` et cohérents avec le découpage `app/` :
+
+```bash
+php artisan make:livewire <Module>/<Nom> --class
+```
+
+```
+app/Livewire/<Module>/<Nom>.php            ← composant, sans logique métier
+resources/views/livewire/<module>/<nom>.blade.php
+```
+
+Usage dans une vue : `<livewire:module.nom />`.
+
+Un composant Livewire valide, appelle un service, affiche. Toute règle
+métier reste dans `app/Domain/`.
+
 ## 4. Motif transactionnel obligatoire
 
 Toute opération critique suit le schéma du cahier §27 :
@@ -138,3 +159,19 @@ tokens → primitives → composants → patterns métier → layouts → pages 
 ```
 
 Ne jamais dessiner un écran isolé avant que ses composants existent.
+
+Charte : `BakeryOS – Prototype (charte caisse).html`. Tokens dans
+`resources/css/app.css` (palette `brand` verte + `context` bleue,
+Roboto, rayons 4–8 px). Composants partagés disponibles :
+
+```
+components/ui/       button, status-badge, stat-card, card, data-table,
+                     search-input, progress, bar-chart, modal, toast,
+                     alert, empty-state, form-field, select, icon
+components/layout/   app-shell, sidebar, topbar, page-header
+components/layouts/  app (gabarit applicatif), auth, pos (caisse plein écran)
+```
+
+Le module Caisse (`App\Livewire\Sales\PointOfSale`) est un composant
+Livewire classique : il porte l'état du panier et appelle, à terme, un
+service de `app/Domain/Sales/` pour toute règle de vente.

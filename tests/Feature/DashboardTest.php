@@ -4,26 +4,35 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
 {
-    public function test_dashboard_renders(): void
+    use RefreshDatabase;
+
+    public function test_dashboard_requires_authentication(): void
     {
-        $this->withoutVite();
-
-        $response = $this->get('/dashboard');
-
-        $response->assertOk();
-        $response->assertSee('Vue d’ensemble');
-        $response->assertSee('Boulangerie', false);
-        $response->assertSee('Navigation principale', false);
+        $this->get('/dashboard')->assertRedirect('/login');
     }
 
     public function test_root_redirects_to_dashboard(): void
     {
+        $this->actingAs(User::factory()->create())
+            ->get('/')
+            ->assertRedirect('/dashboard');
+    }
+
+    public function test_dashboard_renders_for_an_authenticated_user(): void
+    {
         $this->withoutVite();
 
-        $this->get('/')->assertRedirect('/dashboard');
+        $response = $this->actingAs(User::factory()->create())->get('/dashboard');
+
+        $response->assertOk();
+        $response->assertSee('Tableau de bord');
+        $response->assertSee('Navigation principale', false);
+        $response->assertSee('Toutes les boulangeries');
     }
 }

@@ -13,8 +13,7 @@ ristournes, employés, paie, charges, rapports et audit.
 | Fichier | Rôle |
 |---|---|
 | [`cahier_des_charges_gestion_boulangerie.md`](cahier_des_charges_gestion_boulangerie.md) | Règles métier, données, workflows, architecture — **source de vérité n° 1** |
-| [`design_system_boulangerie_soumahoro.md`](design_system_boulangerie_soumahoro.md) | Tokens, composants, états, accessibilité — **source de vérité UI/UX** |
-| [`prototype_boulangerie_soumahoro/`](prototype_boulangerie_soumahoro) | Prototype navigable — référence d'interaction |
+| [`BakeryOS – Prototype (charte caisse).html`](BakeryOS%20%E2%80%93%20Prototype%20(charte%20caisse).html) | Charte visuelle de référence : tokens, composants, écrans, caisse |
 | [`AGENTS.md`](AGENTS.md) | Manuel d'exploitation pour le développement automatisé |
 | [`ROADMAP.md`](ROADMAP.md) | Plan de développement par phases |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Découpage des couches et motifs obligatoires |
@@ -26,7 +25,7 @@ ristournes, employés, paie, charges, rapports et audit.
 
 - **PHP 8.2+** · **Laravel 12**
 - **Blade + Livewire 4** (pas de SPA)
-- **Tailwind CSS 4** — les tokens du design system vivent dans
+- **Tailwind CSS 4** — les tokens de la charte BakeryOS vivent dans
   `resources/css/app.css`
 - **MySQL / MariaDB** en développement (PostgreSQL visé en production)
 - **spatie/laravel-permission** pour rôles et permissions

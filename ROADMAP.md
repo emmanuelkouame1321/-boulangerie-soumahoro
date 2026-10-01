@@ -4,7 +4,7 @@
 > la traiter en respectant `AGENTS.md`, la cocher, mettre à jour l'en-tête
 > de statut, puis passer à la suivante. Ne jamais sauter une phase.
 
-**Statut global : Phase 0 terminée → Phase 1 en cours**
+**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 en cours (1.1 ✅, 1.2 ✅, 1.3 partiel)**
 
 Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
@@ -30,43 +30,86 @@ Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
 ---
 
+## Phase 0.5 — Intégration du prototype BakeryOS ✅
+
+- [x] Charte caisse appliquée aux tokens (`resources/css/app.css`) :
+      vert primaire + bleu contextuel, Roboto, rayons 4–8 px, barre d'accent
+- [x] Shell : sidebar (bandeau vert, bloc site bleu, menu en majuscules),
+      topbar (recherche, sélecteur de site, alertes, profil), `page-header`
+- [x] Primitives et composants : `button`, `status-badge`, `stat-card`,
+      `card`, `data-table`, `search-input`, `progress`, `bar-chart`,
+      `modal`, `toast`, `alert`, `empty-state`, `form-field`, `select`
+- [x] Module **Caisse (POS)** : `App\Livewire\Sales\PointOfSale` et écran
+      plein écran `/caisse` (catégories, produits, panier, paiement)
+- [x] Tous les écrans du prototype (`/production`, `/inventory`,
+      `/purchasing/orders`, `/sales`, `/losses`, `/customers`,
+      `/wholesalers`, `/rebates`, `/suppliers`, `/employees`, `/payroll`,
+      `/expenses`, `/reports`, `/notifications`, `/settings/audit`,
+      `/settings/users`, `/settings/roles`, `/settings`)
+- [x] Navigation et permissions alignées sur la charte (`config/navigation.php`,
+      catalogue `permissions`, rôle `cashier`)
+- [x] Tests de rendu de tous les écrans + tests du composant caisse
+
+**Critère atteint :** `composer ci` vert ; chaque écran est protégé par une
+permission vérifiée côté serveur ; le Super-Admin accède à tout.
+
+---
+
 ## Phase 1 — Socle métier (MVP 1 à 3)
 
-### 1.1 Authentification
+### 1.1 Authentification ✅
 
-- [ ] Installer l'authentification (Breeze Livewire ou implémentation
-      maison avec le layout existant)
-- [ ] Écran de connexion conforme au Design System §57
-- [ ] Écran de déconnexion, mot de passe oublié, expiration de session
-- [ ] Redirection par rôle après connexion
-- [ ] Envelopper les routes métier dans le middleware `auth`
+- [x] Authentification maison (contrôleurs minces) réutilisant le layout
+      et les composants du Design System — pas de Breeze, dont le
+      scaffolding entrerait en conflit avec `components/layouts/app`
+- [x] Écran de connexion conforme au Design System §57
+- [x] Déconnexion (session invalidée + jeton CSRF régénéré)
+- [x] Mot de passe oublié et réinitialisation
+- [x] Messages d'erreur en français (`lang/fr/`) sans fuite d'information
+- [x] Limitation des tentatives : 5 par compte + 20/min par IP
+- [~] Redirection par rôle après connexion — tout le monde arrive sur
+      `/dashboard` pour l'instant ; les tableaux de bord dédiés
+      (Super-Admin / Production / Vente) sont livrés en Phase 9
+- [x] Routes métier derrière le middleware `auth`
 
-**Critère :** un visiteur non authentifié est redirigé vers `/login` ;
-un utilisateur connecté voit son nom dans la topbar.
+**Critère atteint :** un visiteur non authentifié est redirigé vers
+`/login` ; un utilisateur connecté voit son nom et son rôle dans la topbar.
 
-### 1.2 Boulangeries (multi-sites)
+### 1.2 Boulangeries (multi-sites) ✅
 
-- [ ] Migration `bakeries` (nom, code, adresse, téléphone, responsable,
-      statut, paramètres)
-- [ ] Migration pivot `bakery_user`
-- [ ] Migration `bakery_settings`
-- [ ] Modèle `Bakery` + relations + scope de site
-- [ ] `App\Domain\Sites\BakeryContext` : résolution du site courant
-      (session), isolation par défaut, Super-Admin = vision consolidée
-- [ ] Composant `SiteSwitcher` (Design System §12) — jamais de changement
-      silencieux pendant une saisie
-- [ ] CRUD boulangeries réservé au Super-Admin
-- [ ] Tests : isolation des données entre sites
+- [x] Migration `bakeries` (nom, code, adresse, téléphone, responsable,
+      statut, observations) + `softDeletes`
+- [x] Migration pivot `bakery_user` (affectation multi-sites, `is_default`)
+- [x] Migration `bakery_settings` (paramètres par site, valeur JSON)
+- [x] Modèle `Bakery` + relations + `BakeryStatus`
+- [x] `App\Domain\Sites\BakeryContext` : résolution du site courant,
+      Super-Admin = vision consolidée, **fail-closed** sans site
+- [x] `App\Models\Scopes\BakeryScope` + trait `BelongsToBakery`
+      (isolation par site, prêt pour les modèles de Phase 2)
+- [x] `ResolveBakeryContext` : middleware qui alimente le contexte à
+      chaque requête
+- [x] Composant `SiteSwitcher` (Design System §12) avec vérification
+      serveur de l'affectation — un identifiant venu du navigateur n'est
+      jamais fait confiance
+- [x] CRUD boulangeries réservé au Super-Admin (`BakeryPolicy`)
+- [x] Tests : contexte de site, bascule autorisée/refusée, permissions
+- [~] Tests d'isolation de données entre sites — le contexte et le scope
+      sont testés ; l'isolation de bout en bout le sera en Phase 2, dès
+      qu'un modèle métier portera un `bakery_id`
 
-**Critère :** deux sites ont des stocks indépendants ; les données d'un
-site ne fuient jamais vers l'autre.
+**Critère atteint :** le contexte de site est résolu à chaque requête, un
+responsable est cantonné à son site, seul le Super-Admin accède à la vue
+consolidée.
 
 ### 1.3 Unités de mesure
 
-- [ ] Migration `units` (code, libellé, symbole) amorcée depuis
+- [x] Migration `units` (code, libellé, symbole, nature) amorcée depuis
       `config/boulangerie.php`
-- [ ] Migration `unit_conversions` (facteur, unité source/cible)
+- [x] Migration `unit_conversions` (facteur `decimal(18,8)`)
+- [x] Seeders idempotents (`UnitsSeeder`), conversions par défaut
+      (1 sac = 50 kg, 1 kg = 1 000 g, 1 L = 1 000 ml)
 - [ ] Service de conversion d'unités + tests (`1 sac = 50 kg`)
+- [ ] Écran d'administration des unités et conversions
 
 **Critère :** `1 sac de farine` se convertit en `50 kg` dans le calcul.
 

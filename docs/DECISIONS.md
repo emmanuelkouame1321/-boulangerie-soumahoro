@@ -95,6 +95,110 @@ entrée qui la remplace.
 
 ---
 
+---
+
+## ADR-007 — Authentification maison plutôt que Breeze
+
+- **Date :** 30 septembre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier des charges laisse le choix ; Breeze fournit un
+  scaffolding d'authentification clé en main.
+- **Décision :** authentification écrite à la main — `LoginController`,
+  `LogoutController`, `PasswordResetLinkController`,
+  `NewPasswordController` — sur le layout et les composants existants.
+- **Justification :** Breeze installe son propre layout, ses propres vues
+  et ses propres classes Tailwind, en contradiction avec le Design System
+  (« ne pas créer de styles concurrents »). Le coût d'écriture est faible
+  et le contrôle total.
+- **Conséquence :** messages d'erreur en français dans `lang/fr/`. La
+  limitation des tentatives est double : 5 par couple email + IP dans
+  `LoginRequest`, 20/min par IP via le limiteur nommé `login`.
+
+---
+
+## ADR-008 — Isolation par site via un scope global Eloquent
+
+- **Date :** 30 septembre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier impose « les sites sont isolés par défaut »
+  (principe §53.8) sans préciser le mécanisme.
+- **Décision :** trait `App\Models\Concerns\BelongsToBakery` + scope
+  global `App\Models\Scopes\BakeryScope`, adossés à
+  `App\Domain\Sites\BakeryContext` (singleton).
+- **Comportement :**
+  - Super-Admin sans site sélectionné → vision consolidée, pas de filtre ;
+  - Super-Admin avec site sélectionné → filtré sur ce site ;
+  - autre rôle → toujours filtré ; **si aucun site n'est résolu, le scope
+    ferme l'accès (`1 = 0`) plutôt que de l'ouvrir** ;
+  - hors requête HTTP authentifiée (CLI, queue, seeders) → pas de filtre,
+    les traitements devant poser explicitement leur contexte.
+- **Justification :** le repli fail-closed évite qu'une erreur de
+  configuration expose les données d'un autre site. C'est le point le plus
+  sensible du multi-site.
+- **Conséquence :** `App\Support\Navigation` conserve temporairement un
+  mode dégradé (menu complet sans utilisateur) tant que l'appelant n'est
+  pas authentifié ; à retirer en Phase 1.5.
+
+---
+
+## ADR-009 — Composants Livewire classiques (pas mono-fichier)
+
+- **Date :** 30 septembre 2026
+- **Statut :** acceptée
+- **Contexte :** Livewire 4 génère par défaut des composants mono-fichier
+  dans `resources/views/components/`.
+- **Décision :** utiliser `php artisan make:livewire <Module>/<Nom> --class`.
+- **Justification :** composants testables avec `Livewire::test()`,
+  cohérents avec le découpage `app/Livewire/<Module>/` déjà documenté, et
+  sans ambiguïté avec les composants Blade anonymes qui occupent déjà
+  `resources/views/components/`.
+- **Conséquence :** ne pas laisser un `make:livewire` sans `--class`
+  créer un fichier `⚡*.blade.php` dans `components/`.
+
+---
+
+## ADR-010 — Charte visuelle : BakeryOS (charte caisse)
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** l'ancien design system (`design_system_boulangerie_soumahoro.md`)
+  et l'ancien prototype ont été retirés du dépôt au profit de
+  `BakeryOS – Prototype (charte caisse).html`. Cette charte impose une
+  palette verte (primaire) + bleue (contextuelle), Roboto, des boutons en
+  majuscules à rayon 4 px, des cartes à rayon 8 px et une barre d'accent
+  supérieure.
+- **Décision :** la charte BakeryOS devient la source de vérité visuelle.
+  Les tokens sont portés par `resources/css/app.css` (`@theme`), les
+  composants par `resources/views/components/ui|layout`. La logique métier
+  reste dans `app/Domain/` — la charte ne touche que la présentation.
+- **Conséquence :** interdiction maintenue d'écrire une couleur, un rayon
+  ou une ombre en dur. Le vocabulaire de tokens sémantiques (`canvas`,
+  `surface`, `line`, `ink`, `brand`, `context`, `success`…) est conservé,
+  seule leur valeur change.
+
+---
+
+## ADR-011 — Périmètre de l'intégration du prototype
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Décision :** l'intégration du prototype livre la charte, le shell et
+  **tous** les écrans du prototype, ainsi que le module Caisse (POS)
+  (`/caisse`). Les écrans sont des interfaces de référence protégées par
+  permission ; leur branchement aux services métier suit la ROADMAP
+  (achats Phase 3, production Phase 4, ventes Phase 5, etc.).
+- **Justification :** le prototype définit la composition visuelle de
+  chaque module ; livrer les écrans tôt fige la navigation, les
+  permissions et les composants partagés, sans introduire de règle métier
+  prématurée.
+- **Conséquence :** `config/boulangerie.php` porte désormais un catalogue
+  `permissions` (union des permissions de module) créé par le seeder ; un
+  rôle `cashier` est ajouté. Le catalogue produits du POS est un jeu de
+  démonstration en attendant le modèle `Product` (Phase 1.4) et le domaine
+  Ventes (Phase 5).
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le

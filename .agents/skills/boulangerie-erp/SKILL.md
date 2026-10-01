@@ -16,7 +16,8 @@ migration, écran, composant UI.
 2. `ROADMAP.md` — phase active
 3. `docs/ARCHITECTURE.md` — couches et motifs obligatoires
 4. Le paragraphe correspondant du `cahier_des_charges_gestion_boulangerie.md`
-5. Le paragraphe correspondant du `design_system_boulangerie_soumahoro.md`
+5. L'écran ou le composant correspondant dans
+   `BakeryOS – Prototype (charte caisse).html` (charte visuelle)
 
 ## Règles de code à appliquer sans exception
 

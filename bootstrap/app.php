@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ResolveBakeryContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
+
+        // Résolution du site courant à chaque requête web : c'est ce qui
+        // alimente l'isolation par site (cahier §19.2).
+        $middleware->web(append: [
+            ResolveBakeryContext::class,
+        ]);
+
+        $middleware->redirectGuestsTo(fn (): string => route('login'));
+        $middleware->redirectUsersTo('/dashboard');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

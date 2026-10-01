@@ -22,11 +22,10 @@ et reporting.
 | Priorité | Fichier | Portée |
 |---|---|---|
 | 1 | `cahier_des_charges_gestion_boulangerie.md` | Règles métier, permissions, données, workflows, architecture |
-| 2 | `design_system_boulangerie_soumahoro.md` | Tokens, composants, états, responsive, accessibilité |
-| 3 | `prototype_boulangerie_soumahoro/index.html` + `README.md` | Référence d'interaction et de composition visuelle |
-| 4 | `ROADMAP.md` | Ordre d'exécution des travaux |
-| 5 | `docs/ARCHITECTURE.md` | Règles de code et de découpage |
-| 6 | `docs/DECISIONS.md` | Décisions prises et questions métier ouvertes |
+| 2 | `BakeryOS – Prototype (charte caisse).html` | Charte visuelle de référence : tokens, composants, écrans, caisse |
+| 3 | `ROADMAP.md` | Ordre d'exécution des travaux |
+| 4 | `docs/ARCHITECTURE.md` | Règles de code et de découpage |
+| 5 | `docs/DECISIONS.md` | Décisions prises et questions métier ouvertes |
 
 **Le prototype n'est pas la source de vérité métier.** Il matérialise des
 parcours ; les règles viennent du cahier des charges.
@@ -224,22 +223,57 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
 
 ## 11. État actuel du projet
 
-**Fait (Phase 0 — socle technique) :**
+**Phase 0 — socle technique : terminée.**
 
 - Laravel 12.69 + Livewire 4 + Spatie Permission installés et configurés
 - Base MySQL `boulangerie_soumahoro` créée et migrée
 - `.env` configuré (fr, Africa/Abidjan, FCFA)
 - Tokens du Design System câblés dans `resources/css/app.css`
 - `config/boulangerie.php` (source de vérité des valeurs métier)
-- `config/navigation.php` + `App\Support\Navigation` (menu filtré par permission)
-- Enums `Role`, `ProductType`, `StockMovementType`
+- `config/navigation.php` + `App\Support\Navigation`
+- Enums `Role`, `ProductType`, `StockMovementType`, `BakeryStatus`
 - `App\Support\Format` (montants, quantités, écarts)
 - Primitives UI : `icon`, `button`, `status-badge`, `stat-card`, `alert`,
-  `empty-state`, `page-header`
-- Layout complet : AppShell, sidebar responsive, topbar, écran
-  `/dashboard` de référence
+  `empty-state`, `page-header`, `form-field`, `select`
+- Layout complet : AppShell, sidebar responsive, topbar, `/dashboard`
 - Rôles et permissions semés, compte Super-Admin local
 - CI, Larastan et Pint configurés
-- Tests de fumée verts
 
-**Prochaine tâche : Phase 1 de `ROADMAP.md` (Socle métier).**
+**Phase 1 — socle métier : en cours.**
+
+- Authentification maison (connexion, déconnexion, mot de passe oublié et
+  réinitialisation), limitation des tentatives, `lang/fr/`
+- Multi-sites : `bakeries`, `bakery_user`, `bakery_settings`,
+  `BakeryContext`, `ResolveBakeryContext`, `BakeryScope`,
+  trait `BelongsToBakery`
+- `SiteSwitcher` (Livewire) avec vérification serveur de l'affectation
+- CRUD Boulangeries réservé au Super-Admin (`BakeryPolicy`)
+- Unités et conversions amorcées (`UnitsSeeder`, 1 sac = 50 kg)
+
+**Charte BakeryOS intégrée (charte caisse).**
+
+- Tokens vert/bleu contextuel, Roboto, rayons 4–8 px, barre d'accent —
+  `resources/css/app.css`
+- Shell : sidebar (bandeau vert + bloc site bleu), topbar (recherche,
+  sélecteur de site, alertes, profil), `page-header`
+- Composants : `button`, `status-badge`, `stat-card`, `card`,
+  `data-table`, `search-input`, `progress`, `bar-chart`, `modal`, `toast`
+- Module **Caisse (POS)** : `App\Livewire\Sales\PointOfSale` + écran
+  plein écran (`/caisse`), panier et modale de paiement
+- Tous les écrans du prototype livrés (production, stocks, achats,
+  ventes, pertes, clients, grossistes, ristournes, fournisseurs,
+  employés, paie, charges, rapports, notifications, audit, utilisateurs,
+  rôles, paramètres), chacun protégé par permission côté serveur
+- 43 tests verts, Larastan et Pint propres
+
+**Prochaine tâche : finir la Phase 1 —** service de conversion d'unités,
+puis produits et matières premières (1.4), puis gestion des utilisateurs
+et rôles (1.5). Voir `ROADMAP.md`.
+
+### Repères utiles
+
+- Le contexte de site est un **singleton** (`AppServiceProvider::register`).
+  Le middleware le renseigne à chaque requête ; tout consommateur doit le
+  lire via `app(BakeryContext::class)`.
+- Les modèles porteurs d'un `bakery_id` doivent utiliser le trait
+  `BelongsToBakery` pour bénéficier de l'isolation par site.

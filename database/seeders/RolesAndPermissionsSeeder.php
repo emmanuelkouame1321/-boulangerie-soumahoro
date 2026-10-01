@@ -61,6 +61,15 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         }
 
+        // Permissions de module utilisées par la navigation et le middleware
+        // de route, même si aucun rôle ne les porte encore explicitement.
+        /** @var list<string> $declared */
+        $declared = config('boulangerie.permissions', []);
+
+        foreach ($declared as $permission) {
+            $permissions[$permission] = true;
+        }
+
         return array_keys($permissions);
     }
 }

@@ -17,6 +17,7 @@ enum Role: string
     case SuperAdmin = 'super-admin';
     case ProductionManager = 'production-manager';
     case SalesManager = 'sales-manager';
+    case Cashier = 'cashier';
 
     public function label(): string
     {

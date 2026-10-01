@@ -4,9 +4,10 @@
 |--------------------------------------------------------------------------
 | Navigation — menu applicatif
 |--------------------------------------------------------------------------
-| Source unique du menu. Design System §10 et §52 : les groupes non
-| autorisés ne sont jamais affichés. La permission est évaluée côté
-| serveur par App\Support\Navigation.
+| Structure reprise de « BakeryOS – Prototype (charte caisse).html ».
+| Les groupes et entrées non autorisés ne sont jamais affichés : la
+| permission est évaluée côté serveur par App\Support\Navigation, et une
+| entrée dont la route n'existe pas encore est masquée (pas de lien mort).
 */
 
 return [
@@ -16,7 +17,7 @@ return [
         [
             'label' => null,
             'items' => [
-                ['label' => 'Vue d’ensemble', 'path' => 'dashboard', 'icon' => 'home', 'permission' => null],
+                ['label' => 'Dashboard', 'path' => 'dashboard', 'icon' => 'layout-dashboard', 'permission' => null],
             ],
         ],
 
@@ -24,44 +25,48 @@ return [
             'label' => 'Opérations',
             'items' => [
                 ['label' => 'Production', 'path' => 'production', 'icon' => 'factory', 'permission' => 'production.view'],
-                ['label' => 'Stocks', 'path' => 'inventory', 'icon' => 'package', 'permission' => 'inventory.view'],
+                ['label' => 'Stocks', 'path' => 'inventory', 'icon' => 'boxes', 'permission' => 'inventory.view'],
                 ['label' => 'Achats', 'path' => 'purchasing/orders', 'icon' => 'shopping-cart', 'permission' => 'purchasing.view'],
                 ['label' => 'Ventes', 'path' => 'sales', 'icon' => 'receipt', 'permission' => 'sales.view'],
+                ['label' => 'Pertes', 'path' => 'losses', 'icon' => 'trash-2', 'permission' => 'loss.view'],
             ],
         ],
 
         [
-            'label' => 'Clients',
+            'label' => 'Commercial',
             'items' => [
-                ['label' => 'Grossistes', 'path' => 'wholesalers', 'icon' => 'users', 'permission' => 'wholesaler.view'],
-                ['label' => 'Particuliers', 'path' => 'customers', 'icon' => 'user-round', 'permission' => 'sales.view'],
+                ['label' => 'Clients', 'path' => 'customers', 'icon' => 'users', 'permission' => 'customer.view'],
+                ['label' => 'Grossistes', 'path' => 'wholesalers', 'icon' => 'store', 'permission' => 'wholesaler.view'],
+                ['label' => 'Ristournes', 'path' => 'rebates', 'icon' => 'badge-percent', 'permission' => 'rebate.view'],
             ],
         ],
 
         [
-            'label' => 'Gestion',
+            'label' => 'Ressources',
             'items' => [
-                ['label' => 'Pertes', 'path' => 'losses', 'icon' => 'trending-down', 'permission' => 'loss.view'],
-                ['label' => 'Charges', 'path' => 'expenses', 'icon' => 'coins', 'permission' => 'expense.view'],
+                ['label' => 'Fournisseurs', 'path' => 'suppliers', 'icon' => 'truck', 'permission' => 'supplier.view'],
                 ['label' => 'Employés', 'path' => 'employees', 'icon' => 'user-round', 'permission' => 'employee.view'],
-                ['label' => 'Paie', 'path' => 'payroll', 'icon' => 'wallet', 'permission' => 'payroll.view'],
+                ['label' => 'Paie', 'path' => 'payroll', 'icon' => 'wallet-cards', 'permission' => 'payroll.view'],
+                ['label' => 'Charges', 'path' => 'expenses', 'icon' => 'receipt-text', 'permission' => 'expense.view'],
             ],
         ],
 
         [
             'label' => 'Analyse',
             'items' => [
-                ['label' => 'Rapports', 'path' => 'reports', 'icon' => 'trending-up', 'permission' => 'report.view'],
+                ['label' => 'Rapports', 'path' => 'reports', 'icon' => 'chart-no-axes-combined', 'permission' => 'report.view'],
+                ['label' => 'Notifications', 'path' => 'notifications', 'icon' => 'bell', 'permission' => 'alert.view'],
+                ['label' => 'Audit', 'path' => 'settings/audit', 'icon' => 'file-clock', 'permission' => 'audit.view'],
             ],
         ],
 
         [
             'label' => 'Administration',
             'items' => [
+                ['label' => 'Utilisateurs', 'path' => 'settings/users', 'icon' => 'users-round', 'permission' => 'user.view'],
+                ['label' => 'Rôles & permissions', 'path' => 'settings/roles', 'icon' => 'shield-check', 'permission' => 'role.view'],
                 ['label' => 'Boulangeries', 'path' => 'settings/bakeries', 'icon' => 'building-2', 'permission' => 'bakery.view'],
-                ['label' => 'Utilisateurs', 'path' => 'settings/users', 'icon' => 'users', 'permission' => 'user.view'],
                 ['label' => 'Paramètres', 'path' => 'settings', 'icon' => 'settings', 'permission' => 'settings.view'],
-                ['label' => 'Audit', 'path' => 'settings/audit', 'icon' => 'clipboard-list', 'permission' => 'audit.view'],
             ],
         ],
     ],

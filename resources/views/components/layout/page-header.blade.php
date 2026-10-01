@@ -1,43 +1,33 @@
 @props([
     'title',
     'description' => null,
+    'eyebrow' => null,
     'breadcrumbs' => [],
 ])
 
-{{-- Design System §13 : breadcrumb optionnel, H1, description, actions à droite.
-     Une seule action principale porte le style primaire. --}}
-<div {{ $attributes->merge(['class' => 'mb-6']) }}>
-    @if (! empty($breadcrumbs))
-        <nav aria-label="Fil d’Ariane" class="mb-2">
-            <ol class="flex flex-wrap items-center gap-1 text-xs text-muted">
-                @foreach ($breadcrumbs as $crumb)
-                    <li class="flex items-center gap-1">
-                        @if (! $loop->first)
-                            <x-ui.icon name="chevron-right" :size="12" class="text-soft" />
-                        @endif
+@php
+    // En-tête de page de la charte caisse : surtitre optionnel, titre H1,
+    // description, actions à droite. Une seule action principale.
+    $context = $eyebrow;
+    if ($context === null && ! empty($breadcrumbs)) {
+        $context = end($breadcrumbs)['label'] ?? null;
+    }
+@endphp
 
-                        @if (! empty($crumb['href']) && ! $loop->last)
-                            <a href="{{ $crumb['href'] }}" class="hover:text-ink">{{ $crumb['label'] }}</a>
-                        @else
-                            <span @class(['text-ink font-medium' => $loop->last])>{{ $crumb['label'] }}</span>
-                        @endif
-                    </li>
-                @endforeach
-            </ol>
-        </nav>
-    @endif
+<div {{ $attributes->merge(['class' => 'mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between']) }}>
+    <div class="min-w-0">
+        @if ($context)
+            <p class="text-xs font-semibold text-muted">{{ $context }}</p>
+        @endif
 
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div class="min-w-0">
-            <h1 class="text-2xl leading-tight font-semibold text-ink">{{ $title }}</h1>
+        <h1 class="mt-0.5 text-2xl leading-tight font-bold text-ink">{{ $title }}</h1>
 
-            @if ($description)
-                <p class="mt-1 text-sm text-muted">{{ $description }}</p>
-            @endif
-        </div>
-
-        @isset($actions)
-            <div class="flex shrink-0 flex-wrap items-center gap-2">{{ $actions }}</div>
-        @endisset
+        @if ($description)
+            <p class="mt-1 text-[13px] text-muted">{{ $description }}</p>
+        @endif
     </div>
+
+    @isset($actions)
+        <div class="flex shrink-0 flex-wrap items-center gap-2">{{ $actions }}</div>
+    @endisset
 </div>

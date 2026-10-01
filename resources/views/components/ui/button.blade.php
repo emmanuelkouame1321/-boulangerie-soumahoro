@@ -3,25 +3,34 @@
     'type' => 'button',
     'href' => null,
     'icon' => null,
+    'iconAfter' => null,
     'loading' => false,
     'disabled' => false,
+    'size' => 'md',
 ])
 
 @php
-    // Design System §19 et §20 : états default/hover/focus/active/disabled/loading.
+    // Charte caisse : bouton en majuscules, rayon 4px, hauteur 44px.
     // Une seule action primaire par contexte.
     $variants = [
-        'primary' => 'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800',
-        'secondary' => 'bg-surface text-ink border border-line hover:bg-subtle',
-        'ghost' => 'text-muted hover:bg-subtle hover:text-ink',
-        'danger' => 'bg-danger text-white hover:brightness-95 active:brightness-90',
+        'primary' => 'bg-brand-700 text-white border border-brand-700 hover:bg-brand-800 active:bg-brand-900',
+        'secondary' => 'bg-surface text-ink border border-line-strong hover:bg-subtle',
+        'soft' => 'bg-surface text-context-600 border border-context-600 hover:bg-context-50',
+        'blue' => 'bg-context-600 text-white border border-context-600 hover:bg-context-700',
+        'danger' => 'bg-surface text-danger border border-line-strong hover:bg-danger-bg',
+        'ghost' => 'bg-transparent text-muted border border-transparent hover:bg-subtle hover:text-ink',
     ];
 
-    $base = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition '
+    $sizes = [
+        'sm' => 'min-h-8 px-3 text-xs',
+        'md' => 'min-h-11 px-4 text-[13px]',
+    ];
+
+    $base = 'inline-flex items-center justify-center gap-2 rounded-control font-medium uppercase tracking-wide transition '
         .'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 '
         .'disabled:cursor-not-allowed disabled:opacity-50';
 
-    $classes = $base.' '.($variants[$variant] ?? $variants['primary']);
+    $classes = $base.' '.($variants[$variant] ?? $variants['primary']).' '.($sizes[$size] ?? $sizes['md']);
 
     $isDisabled = $disabled || $loading;
     $tag = $href && ! $isDisabled ? 'a' : 'button';
@@ -39,4 +48,8 @@
     @endif
 
     {{ $slot }}
+
+    @if ($iconAfter)
+        <x-ui.icon :name="$iconAfter" :size="16" />
+    @endif
 </{{ $tag }}>

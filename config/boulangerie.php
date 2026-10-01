@@ -69,6 +69,67 @@ return [
                 'report.view-commercial',
             ],
         ],
+        'cashier' => [
+            'label' => 'Caissier',
+            'description' => 'Caisse, ventes au comptoir, clients, mémo.',
+            'permissions' => [
+                'pos.open',
+                'sales.view',
+                'sales.create',
+                'customer.view',
+                'alert.view',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Catalogue des permissions
+    |--------------------------------------------------------------------------
+    | Union de toutes les permissions déclarées par les rôles ci-dessus et
+    | des permissions de module utilisées par la navigation et le middleware
+    | de route. Le seeder crée cette liste en base : sans elle, une route
+    | protégée par `permission:` échouerait faute de permission existante.
+    | Le Super-Admin reste couvert par Gate::before (wildcard).
+    */
+    'permissions' => [
+        'pos.open',
+        'inventory.view',
+        'inventory.adjust',
+        'recipe.view',
+        'production.view',
+        'production.create',
+        'production.validate',
+        'purchasing.view',
+        'goods-receipt.create',
+        'supplier.view',
+        'sales.view',
+        'sales.create',
+        'sales.close-day',
+        'customer.view',
+        'wholesaler.view',
+        'wholesaler.manage',
+        'rebate.view',
+        'loss.view',
+        'loss.create',
+        'employee.view',
+        'payroll.view',
+        'expense.view',
+        'finished-goods.view',
+        'report.view',
+        'report.view-commercial',
+        'alert.view',
+        'alert.acknowledge',
+        'audit.view',
+        'user.view',
+        'user.manage',
+        'role.view',
+        'role.manage',
+        'settings.view',
+        'settings.manage',
+        'bakery.view',
+        'bakery.create',
+        'bakery.update',
     ],
 
     /*
@@ -127,6 +188,10 @@ return [
             'validated' => ['label' => 'Validée', 'tone' => 'success'],
             'cancelled' => ['label' => 'Annulée', 'tone' => 'danger'],
         ],
+        'bakery' => [
+            'active' => ['label' => 'Active', 'tone' => 'success'],
+            'inactive' => ['label' => 'Inactive', 'tone' => 'neutral'],
+        ],
         'batch' => [
             'fresh' => ['label' => 'Frais', 'tone' => 'success'],
             'to_sell_soon' => ['label' => 'À écouler', 'tone' => 'warning'],
@@ -161,15 +226,28 @@ return [
     |--------------------------------------------------------------------------
     */
     'units' => [
-        'kg' => ['label' => 'Kilogramme', 'symbol' => 'kg'],
-        'g' => ['label' => 'Gramme', 'symbol' => 'g'],
-        'l' => ['label' => 'Litre', 'symbol' => 'L'],
-        'ml' => ['label' => 'Millilitre', 'symbol' => 'ml'],
-        'sack' => ['label' => 'Sac', 'symbol' => 'sac'],
-        'pack' => ['label' => 'Paquet', 'symbol' => 'paquet'],
-        'carton' => ['label' => 'Carton', 'symbol' => 'carton'],
-        'piece' => ['label' => 'Pièce', 'symbol' => 'pcs'],
-        'bundle' => ['label' => 'Fagot', 'symbol' => 'fagot'],
+        'kg' => ['label' => 'Kilogramme', 'symbol' => 'kg', 'kind' => 'weight', 'position' => 10],
+        'g' => ['label' => 'Gramme', 'symbol' => 'g', 'kind' => 'weight', 'position' => 20],
+        'l' => ['label' => 'Litre', 'symbol' => 'L', 'kind' => 'volume', 'position' => 30],
+        'ml' => ['label' => 'Millilitre', 'symbol' => 'ml', 'kind' => 'volume', 'position' => 40],
+        'sack' => ['label' => 'Sac', 'symbol' => 'sac', 'kind' => 'container', 'position' => 50],
+        'pack' => ['label' => 'Paquet', 'symbol' => 'paquet', 'kind' => 'container', 'position' => 60],
+        'carton' => ['label' => 'Carton', 'symbol' => 'carton', 'kind' => 'container', 'position' => 70],
+        'piece' => ['label' => 'Pièce', 'symbol' => 'pcs', 'kind' => 'count', 'position' => 80],
+        'bundle' => ['label' => 'Fagot', 'symbol' => 'fagot', 'kind' => 'count', 'position' => 90],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Conversions d'unités amorcées
+    |--------------------------------------------------------------------------
+    | Exemple du cahier §4.3 : 1 sac de farine = 50 kg.
+    | Administrables ensuite par le Super-Admin (Phase 1.3).
+    */
+    'unit_conversions' => [
+        ['from' => 'sack', 'to' => 'kg', 'factor' => 50],
+        ['from' => 'kg', 'to' => 'g', 'factor' => 1000],
+        ['from' => 'l', 'to' => 'ml', 'factor' => 1000],
     ],
 
     /*
@@ -179,6 +257,7 @@ return [
     */
     'payment_methods' => [
         'cash' => 'Espèces',
+        'card' => 'Carte',
         'mobile_money' => 'Mobile Money',
         'transfer' => 'Virement',
         'other' => 'Autre',

@@ -1,15 +1,9 @@
-@props([
-    'siteName' => 'Toutes les boulangeries',
-    'siteMeta' => null,
-])
-
-{{-- Design System §9.1 : sidebar 248px + topbar 64px + zone contenu
-     max-width 1600px, centrée, padding 24px. --}}
+{{-- Charte caisse : sidebar 256px + topbar 64px + contenu centré (max 1600px, padding 24px). --}}
 <div {{ $attributes->merge(['class' => 'min-h-screen bg-canvas']) }}>
     <x-layout.sidebar />
 
-    <div class="flex min-h-screen flex-col lg:pl-[248px]">
-        <x-layout.topbar :site-name="$siteName" :site-meta="$siteMeta" />
+    <div class="flex min-h-screen flex-col lg:pl-64">
+        <x-layout.topbar />
 
         <main class="mx-auto w-full max-w-[1600px] flex-1 p-4 sm:p-6" id="contenu">
             {{ $slot }}

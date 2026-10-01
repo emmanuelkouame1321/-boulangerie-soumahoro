@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BakeryOS — Prototype métier</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+:root {
+  --color-primary-50:#EFFAF1; --color-primary-100:#DDF3E1; --color-primary-200:#BCE7C4;
+  --color-primary-300:#8ED19A; --color-primary-400:#5FBE70; --color-primary-500:#35A64A;
+  --color-primary-600:#2E963F; --color-primary-700:#237735; --color-primary-800:#1B5C2A;
+  --color-primary-900:#123D1D;
+  --color-context-50:#EFF7FB; --color-context-100:#DDEFF7; --color-context-500:#247BA0;
+  --color-context-600:#1F6C8D; --color-context-700:#19556F;
+  --color-bg:#F5F7F6; --color-surface:#FFFFFF; --color-surface-muted:#F0F2F1;
+  --color-border:#E1E5E3; --color-border-strong:#CBD2CE;
+  --color-text:#1F2923; --color-text-secondary:#66716B; --color-text-muted:#8B9690;
+  --color-success:#35A64A; --color-warning:#E5A11A; --color-danger:#D64545; --color-info:#247BA0;
+  --radius-sm:6px; --radius-md:8px; --radius-lg:12px; --radius-xl:16px;
+}
+
+:root{
+ --p50:#EFFAF1;--p100:#DDF3E1;--p200:#BCE7C4;--p500:#35A64A;--p600:#2E963F;--p700:#237735;--p900:#123D1D;
+ --c50:#EFF7FB;--c100:#DDEFF7;--c500:#247BA0;--c600:#1F6C8D;
+ --bg:#F5F7F6;--surface:#fff;--muted:#F0F2F1;--border:#E1E5E3;--border2:#CBD2CE;
+ --text:#1F2923;--secondary:#66716B;--subtle:#8B9690;--warn:#E5A11A;--danger:#D64545;--info:#247BA0;
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit} button{cursor:pointer}
+.app{min-height:100vh;display:flex}.sidebar{width:256px;background:#fff;border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:30;overflow:auto}
+.main{margin-left:256px;min-height:100vh;width:calc(100% - 256px)}.topbar{height:64px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:20}
+.page{padding:24px;max-width:1600px;margin:auto}.brand{height:64px;padding:0 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--p600);color:#fff;display:grid;place-items:center;font-weight:800}
+.nav-group{padding:16px 12px 4px;color:var(--subtle);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.nav{margin:2px 8px;display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:8px;color:var(--secondary);font-size:14px;border:0;background:transparent;width:calc(100% - 16px);text-align:left}
+.nav:hover{background:var(--muted);color:var(--text)}.nav.active{background:var(--p50);color:var(--p800);font-weight:650}.site{margin:14px 12px;padding:11px 12px;border:1px solid var(--border);border-radius:8px;background:var(--c50)}
+.site .label{font-size:10px;color:var(--c500);font-weight:800;text-transform:uppercase}.site strong{font-size:13px}
+.icon{width:18px;height:18px;stroke-width:1.9}.title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}.eyebrow{font-size:12px;color:var(--secondary);font-weight:600}.h1{font-size:28px;line-height:1.15;font-weight:750;margin:3px 0}.h2{font-size:18px;font-weight:700}.muted{color:var(--secondary)}.small{font-size:12px}.tiny{font-size:11px;color:var(--subtle)}
+.btn{min-height:40px;border:1px solid var(--border2);background:#fff;border-radius:8px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:650;font-size:13px;color:var(--text)}
+.btn:hover{background:var(--muted)}.btn.primary{background:var(--p600);border-color:var(--p600);color:#fff}.btn.primary:hover{background:var(--p700)}.btn.danger{color:#A92F2F;background:#fff}.btn.soft{background:var(--p50);border-color:var(--p200);color:var(--p800)}.btn.blue{background:var(--c50);border-color:var(--c100);color:var(--c600)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(16,21,18,.05)}.kpi{padding:16px}.kpi .value{font-size:24px;font-weight:800;margin-top:8px}.kpi .delta{font-size:12px;margin-top:5px}.up{color:var(--p700)}.warn{color:#A96F00}.danger{color:#A92F2F}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.panel{padding:18px}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.chart{height:220px;display:flex;align-items:flex-end;gap:9px;padding:18px 8px 8px;border-top:1px solid var(--border);background:linear-gradient(to top,rgba(53,166,74,.035),transparent)}
+.bar{flex:1;background:var(--p200);border-radius:5px 5px 2px 2px;min-width:10px}.bar:nth-child(3n){background:var(--p500)}
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th{text-align:left;color:var(--secondary);font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:var(--muted);padding:11px 12px;white-space:nowrap}.table td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle}.table tr:last-child td{border-bottom:0}.num{text-align:right;font-variant-numeric:tabular-nums}.badge{display:inline-flex;align-items:center;min-height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}.b-success{background:var(--p50);color:var(--p800)}.b-warning{background:#FFF8E8;color:#A96F00}.b-danger{background:#FFF1F1;color:#A92F2F}.b-info{background:var(--c50);color:#19556F}.b-neutral{background:var(--muted);color:var(--secondary)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.input{height:42px;border:1px solid var(--border2);background:#fff;border-radius:8px;padding:0 12px;outline:none;min-width:180px}.input:focus{border-color:var(--p500);box-shadow:0 0 0 3px var(--p100)}.search{position:relative}.search .icon{position:absolute;left:12px;top:12px;color:var(--subtle)}.search input{padding-left:38px}
+.empty{padding:42px;text-align:center;color:var(--secondary)}.empty strong{display:block;color:var(--text);margin-bottom:5px}
+.toast{position:fixed;right:22px;bottom:22px;background:#101512;color:#fff;padding:13px 16px;border-radius:9px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:100;display:none}.toast.show{display:flex;gap:9px;align-items:center}
+.modal-back{position:fixed;inset:0;background:rgba(16,21,18,.35);z-index:80;display:none;align-items:center;justify-content:center;padding:20px}.modal-back.open{display:flex}.modal{width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:0 20px 60px rgba(16,21,18,.18)}.modal-head{padding:18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}.modal-body{padding:18px}.modal-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}.field .input,.field select{width:100%}
+.stepper{display:flex;gap:4px;margin-bottom:20px}.step{flex:1;padding:10px;border-bottom:2px solid var(--border);font-size:12px;color:var(--secondary)}.step.active{border-color:var(--p500);color:var(--p800);font-weight:700}
+.timeline{border-left:2px solid var(--border);padding-left:18px;margin-left:8px}.event{position:relative;margin-bottom:18px}.event:before{content:"";position:absolute;left:-25px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--p500);border:2px solid #fff;box-shadow:0 0 0 1px var(--p200)}
+/* POS */
+.pos{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;grid-template-rows:60px 1fr}.pos.open{display:grid}.pos-head{background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:8px 12px}.pos-head .context{margin-left:auto;display:flex;gap:8px;align-items:center}.pos-body{display:grid;grid-template-columns:190px 1fr 370px;min-height:0}.pos-cats{background:#fff;border-right:1px solid var(--border);padding:12px;overflow:auto}.cat{width:100%;min-height:48px;margin-bottom:7px;border:1px solid var(--border);background:#fff;border-radius:8px;text-align:left;padding:0 12px;font-weight:650;color:var(--secondary)}.cat.active{background:var(--p500);color:#fff;border-color:var(--p500)}.pos-products{padding:14px;overflow:auto}.pos-tools{display:flex;gap:8px;margin-bottom:12px}.pos-tools .input{flex:1}.products{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px}.product{background:#fff;border:1px solid var(--border);border-radius:12px;text-align:left;padding:0;overflow:hidden;min-height:175px;position:relative}.product:hover{border-color:var(--p300);box-shadow:0 2px 8px rgba(16,21,18,.06)}.prod-photo{height:84px;background:linear-gradient(135deg,#f8faf8,#eaf2eb);display:grid;place-items:center;font-size:38px}.prod-body{padding:10px}.prod-name{font-weight:750;font-size:13px}.prod-desc{font-size:11px;color:var(--secondary);margin-top:2px}.price{font-size:17px;font-weight:800;margin-top:9px}.stock{font-size:10px;margin-top:4px}.cart{background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0}.cart-head{padding:14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}.cart-items{flex:1;overflow:auto;padding:10px}.cart-item{padding:10px 4px;border-bottom:1px solid var(--border)}.ci-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700}.qty{display:flex;align-items:center;gap:6px;margin-top:7px}.qbtn{width:32px;height:32px;border:1px solid var(--border2);background:#fff;border-radius:7px;font-weight:800}.cart-foot{border-top:1px solid var(--border);padding:14px}.sum{display:flex;justify-content:space-between;margin:6px 0;font-size:13px}.total{font-size:27px;font-weight:850;margin:10px 0 14px}.pay{width:100%;height:60px;background:var(--p600);color:#fff;border:0;border-radius:9px;font-size:16px;font-weight:800}.pay:hover{background:var(--p700)}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.products{grid-template-columns:repeat(3,1fr)}.pos-body{grid-template-columns:160px 1fr 340px}}
+@media(max-width:800px){.sidebar{width:72px}.sidebar .nav span,.sidebar .nav-group,.site .label,.site strong{display:none}.site{margin:12px 10px;padding:10px}.main{margin-left:72px;width:calc(100% - 72px)}.nav{justify-content:center;padding:0}.page{padding:14px}.products{grid-template-columns:repeat(2,1fr)}.pos-body{grid-template-columns:88px 1fr}.pos .cart{display:none}.pos-cats{padding:8px}.cat{font-size:10px;padding:0 5px;text-align:center}.pos-head .hide-sm{display:none}.form-grid{grid-template-columns:1fr}}
+
+/* ===== CHARTE CAISSE : alignée sur la capture (tokens.css = source des couleurs) ===== */
+:root{--p300:#8ED19A;--p400:#5FBE70;--p800:#1B5C2A;--c700:#19556F;--list:#F2F2F2}
+body{font-family:'Roboto',system-ui,-apple-system,'Segoe UI',sans-serif}
+body:before{content:"";position:fixed;top:0;left:0;right:0;height:6px;background:var(--p700);z-index:200}
+.h1,.h2{font-weight:700}
+.card{border:0;border-radius:8px;box-shadow:none}
+.panel-head{padding-bottom:8px;border-bottom:1px solid var(--border2)}
+.btn{border-radius:4px;text-transform:uppercase;letter-spacing:.02em;font-weight:500;min-height:44px}
+.btn.primary{background:var(--p700);border-color:var(--p700);color:#fff}.btn.primary:hover{background:var(--p800)}
+.btn.blue{background:var(--c600);border-color:var(--c600);color:#fff}
+.btn.soft{background:#fff;border-color:var(--c600);color:var(--c600)}
+.input,.field select{border-radius:4px}
+.modal{border-radius:8px}.toast{border-radius:4px}
+.badge{text-transform:uppercase;letter-spacing:.02em}
+.b-info{background:var(--c600);color:#fff}
+/* navigation = liste de catégories de la capture */
+.brand{background:var(--p700);color:#fff;border:0}.brand .tiny{color:var(--p100)}.logo{background:#fff;color:var(--p700)}
+.site{background:var(--c600);border:0;border-radius:4px}.site .label,.site strong,.site .tiny{color:#fff}
+.nav{background:var(--list);border-radius:0;color:var(--text);text-transform:uppercase;font-size:12px;font-weight:500;margin:2px 8px}
+.nav:hover{background:#E6EAE8}.nav.active{background:var(--p500);color:#fff;font-weight:700}
+.sidebar .nav.active .icon{stroke:#fff}
+/* caisse */
+.pos-head{border-bottom:0;margin-top:6px}
+.pos-head>.btn.hide-sm{background:var(--p700);border-color:var(--p700);color:#fff;min-height:40px;border-radius:2px}
+.pos-head>.btn:first-child,.pos-head .context .btn{background:none;border:0;color:var(--text)}
+.pos-head .b-success{background:var(--p50);color:var(--p800)}
+.pos-head .context .small{border:1px solid var(--c600);color:var(--c600);padding:8px 12px;border-radius:4px;text-transform:uppercase}
+.pos-body{gap:12px;padding:0 12px 12px}
+.pos-cats,.pos-products,.cart{background:#fff;border:0;border-radius:4px}
+.cat{border:0;border-radius:0;background:var(--list);color:var(--text);text-transform:uppercase;font-size:12px;font-weight:500;margin-bottom:2px}
+.cat.active{background:var(--p500);color:#fff;font-weight:700}
+.products{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.product{background:none;border:0;box-shadow:none;min-height:0;overflow:visible;display:grid;grid-template-columns:84px;grid-template-rows:auto 72px auto;justify-content:center;justify-items:center;gap:6px;padding:6px 2px;text-align:center;border-radius:8px}
+.product:hover{background:var(--list);box-shadow:none;border:0}
+.prod-body{display:contents}
+.prod-name{grid-row:1;text-transform:uppercase;font-size:11px;font-weight:500;color:var(--secondary);line-height:1.2;word-break:break-word}
+.prod-photo{grid-row:2;grid-column:1;width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F1D08F,#C8902E);font-size:34px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.prod-desc{display:none}
+.price{grid-row:2;grid-column:1;justify-self:end;align-self:end;margin:0;background:#fff;color:var(--text);font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.stock{grid-row:3;margin:0;font-size:10px}
+.cart-head{border-bottom:1px solid var(--border)}
+.cart-item{padding:0;border-bottom:1px solid var(--border)}
+.ci-top{padding:14px 12px 6px;font-size:15px;text-transform:uppercase;font-weight:500}.ci-top span:last-child{font-weight:700}
+.qty{padding:0 12px 10px}
+.cart-item:last-child{background:var(--p500);color:#fff}
+.cart-items{padding:0}
+.total{font-size:22px;font-weight:700}
+.pay{background:var(--p700);border-radius:4px;text-transform:uppercase;letter-spacing:.03em}.pay:hover{background:var(--p800)}
+.cart-foot .btn{border-color:var(--c600);color:var(--c600)}
+</style>
+</head>
+<body>
+<div class="app" id="erp">
+<aside class="sidebar">
+  <div class="brand"><div class="logo">B</div><div><strong>BakeryOS</strong><div class="tiny">Gestion métier</div></div></div>
+  <div class="site"><div class="label">Site actif</div><strong>Boulangerie Centre</strong><div class="tiny">ABJ-CENTRE</div></div>
+  <nav id="nav"></nav>
+</aside>
+<main class="main">
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:10px"><button class="btn" onclick="toast('Recherche globale ouverte')"><i data-lucide="search" class="icon"></i><span class="hide-sm">Recherche</span></button><span class="badge b-info">Boulangerie Centre</span></div>
+  <div style="display:flex;align-items:center;gap:8px"><button class="btn" onclick="openAlerts()"><i data-lucide="bell" class="icon"></i><span class="badge b-danger">7</span></button><button class="btn" onclick="toast('Profil de Awa Kouassi')"><i data-lucide="user-round" class="icon"></i>Awa Kouassi</button></div>
+</header>
+<section class="page" id="page"></section>
+</main>
+</div>
+
+<div class="pos" id="pos">
+  <div class="pos-head">
+    <button class="btn" onclick="closePOS()"><i data-lucide="arrow-left" class="icon"></i><span class="hide-sm">Quitter</span></button>
+    <span class="badge b-success">CAISSE ACTIVE</span>
+    <button class="btn soft hide-sm">ESPÈCES</button><button class="btn hide-sm">CARTE</button><button class="btn hide-sm">MOBILE MONEY</button>
+    <div class="context"><span class="badge b-info">Boulangerie Centre</span><span class="small hide-sm">Caissier : Awa</span><button class="btn" onclick="toast('Client : Comptoir')">Client</button></div>
+  </div>
+  <div class="pos-body">
+    <aside class="pos-cats" id="cats"></aside>
+    <section class="pos-products">
+      <div class="pos-tools"><div class="search" style="flex:1"><i data-lucide="search" class="icon"></i><input class="input" id="posSearch" placeholder="Rechercher nom, SKU ou code-barres..." oninput="renderPOSProducts()"></div><button class="btn primary" onclick="toast('Scanner prêt — F2')"><i data-lucide="scan-barcode" class="icon"></i>Scanner</button></div>
+      <div class="tiny" style="margin-bottom:9px">Produits disponibles • toucher une carte pour ajouter au panier</div>
+      <div class="products" id="products"></div>
+    </section>
+    <aside class="cart">
+      <div class="cart-head"><div><strong>Panier</strong><div class="tiny">#54-N000001 • 15:35</div></div><span class="badge b-success" id="cartCount">0 article</span></div>
+      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-foot"><div class="sum"><span>Sous-total</span><strong id="subtotal">0 FCFA</strong></div><div class="sum"><span>Remise</span><strong>0 FCFA</strong></div><div class="sum"><span>Taxes</span><strong>0 FCFA</strong></div><div class="sum total"><span>TOTAL</span><span id="total">0 FCFA</span></div><button class="btn" style="width:100%;margin-bottom:8px" onclick="toast('Mémo enregistré')">MÉMO</button><button class="pay" onclick="checkout()">PAYER • <span id="payAmount">0 FCFA</span></button></div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal-back" id="modal"><div class="modal" id="modalContent"></div></div>
+<div class="toast" id="toast"><i data-lucide="check-circle-2" class="icon"></i><span></span></div>
+
+<script>
+const navGroups=[
+ ['','Dashboard','layout-dashboard','dashboard'],
+ ['OPÉRATIONS','Production','factory','production'],['','Stocks','boxes','stocks'],['','Achats','shopping-cart','purchases'],['','Ventes','receipt','sales'],['','Pertes','trash-2','losses'],
+ ['COMMERCIAL','Clients','users','customers'],['','Grossistes','store','wholesalers'],['','Ristournes','badge-percent','rebates'],
+ ['RESSOURCES','Fournisseurs','truck','suppliers'],['','Employés','user-round','employees'],['','Paie','wallet-cards','payroll'],['','Charges','receipt-text','expenses'],
+ ['ANALYSE','Rapports','chart-no-axes-combined','reports'],['','Notifications','bell','notifications'],['','Audit','file-clock','audit'],
+ ['ADMINISTRATION','Utilisateurs','users-round','users'],['','Rôles & permissions','shield-check','roles'],['','Paramètres','settings','settings']
+];
+let current='dashboard';
+function buildNav(){document.getElementById('nav').innerHTML=navGroups.map(([g,l,i,k])=>(g?`<div class="nav-group">${g}</div>`:'')+`<button class="nav ${current===k?'active':''}" onclick="go('${k}')"><i data-lucide="${i}" class="icon"></i><span>${l}</span></button>`).join('');lucide.createIcons()}
+function money(n){return n.toLocaleString('fr-FR')+' FCFA'}
+const products=[
+ {n:'Baguette',d:'Pain traditionnel',p:500,s:86,e:'🥖',cat:'Pains'}, {n:'Pain complet',d:'Farine complète',p:700,s:34,e:'🍞',cat:'Pains'},
+ {n:'Croissant',d:'Beurre',p:800,s:42,e:'🥐',cat:'Viennoiseries'}, {n:'Pain au chocolat',d:'Chocolat',p:900,s:18,e:'🥐',cat:'Viennoiseries'},
+ {n:'Cake nature',d:'Format familial',p:3500,s:12,e:'🍰',cat:'Pâtisserie'}, {n:'Gâteau chocolat',d:'Part 6 personnes',p:12000,s:7,e:'🍰',cat:'Pâtisserie'},
+ {n:'Sandwich poulet',d:'Poulet & crudités',p:2500,s:16,e:'🥪',cat:'Sandwichs'}, {n:'Pizza individuelle',d:'Tomate & fromage',p:2500,s:9,e:'🍕',cat:'Plats'},
+ {n:'Eau 50cl',d:'Boisson',p:500,s:112,e:'💧',cat:'Boissons'}, {n:'Jus naturel',d:'Orange',p:1000,s:27,e:'🧃',cat:'Boissons'}
+];
+let cart=[];
+function go(k){current=k;buildNav();render();window.scrollTo(0,0)}
+function toast(msg){const t=document.getElementById('toast');t.querySelector('span').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+function render(){
+ const p=document.getElementById('page');
+ const views={dashboard:dashboard,production:production,stocks:stocks,purchases:purchases,sales:sales,losses:losses,customers:customers,wholesalers:wholesalers,rebates:rebates,suppliers:suppliers,employees:employees,payroll:payroll,expenses:expenses,reports:reports,notifications:notifications,audit:audit,users:users,roles:roles,settings:settings};
+ p.innerHTML=(views[current]||dashboard)();lucide.createIcons()
+}
+function header(title,sub,action=''){return `<div class="title-row"><div><div class="eyebrow">${sub||'Boulangerie Centre'}</div><div class="h1">${title}</div></div><div>${action}</div></div>`}
+function dashboard(){return header('Tableau de bord','Vue opérationnelle • Aujourd’hui','<button class="btn primary" onclick="openPOS()"><i data-lucide="scan-barcode" class="icon"></i>Ouvrir la caisse</button>')+
+`<div class="kpis">
+${kpi('CA DU JOUR','2 450 000 FCFA','+8,2 % vs hier','up','banknote')}
+${kpi('VENTES','1 284','+5,4 %','up','receipt')}
+${kpi('PRODUCTION','3 240 unités','Rendement 97,3 %','up','factory')}
+${kpi('STOCK CRITIQUE','7','3 produits expirent bientôt','warn','triangle-alert')}
+</div>
+<div class="grid2"><div class="card panel"><div class="panel-head"><div><div class="h2">Ventes sur 7 jours</div><div class="tiny">Chiffre d’affaires • FCFA</div></div><button class="btn">7 jours ▾</button></div><div class="chart">${[42,58,49,71,64,83,94,78,89,73,92,100].map(x=>`<div class="bar" style="height:${x}%"></div>`).join('')}</div></div>
+<div class="card panel"><div class="panel-head"><div><div class="h2">Alertes prioritaires</div><div class="tiny">Actions à traiter</div></div><button class="btn" onclick="go('notifications')">Voir tout</button></div>
+${alertRow('Stock critique','Farine 50 kg • 8 sacs','danger')} ${alertRow('Péremption','Croissants • lot #20260930-002','warning')} ${alertRow('Commande','Fournisseur Ivoire • en retard','warning')} ${alertRow('Production','Écart de rendement • -8 pains','info')}</div></div>
+<div class="grid3" style="margin-top:16px"><div class="card panel"><div class="panel-head"><div class="h2">Production aujourd’hui</div><span class="badge b-success">En cours</span></div><div style="font-size:30px;font-weight:800">3 240</div><div class="tiny">unités produites • 3 330 attendues</div><div style="margin-top:14px;height:8px;background:var(--muted);border-radius:99px"><div style="height:100%;width:97%;background:var(--p500);border-radius:99px"></div></div></div>
+<div class="card panel"><div class="panel-head"><div class="h2">Stocks</div><span class="badge b-warning">7 alertes</span></div><div style="font-size:30px;font-weight:800">24 860</div><div class="tiny">unités disponibles</div><button class="btn" style="margin-top:14px" onclick="go('stocks')">Consulter les stocks</button></div>
+<div class="card panel"><div class="panel-head"><div class="h2">Caisse</div><span class="badge b-success">Ouverte</span></div><div style="font-size:30px;font-weight:800">185</div><div class="tiny">ventes depuis ouverture</div><button class="btn primary" style="margin-top:14px" onclick="openPOS()">Continuer la caisse</button></div></div>`}
+function kpi(label,value,delta,cls,icon){return `<div class="card kpi"><div style="display:flex;justify-content:space-between"><div class="tiny" style="font-weight:800;letter-spacing:.04em">${label}</div><i data-lucide="${icon}" class="icon muted"></i></div><div class="value">${value}</div><div class="delta ${cls}">${delta}</div></div>`}
+function alertRow(a,b,c){return `<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)"><div><strong style="font-size:13px">${a}</strong><div class="tiny">${b}</div></div><span class="badge b-${c}">${c==='danger'?'Critique':c==='warning'?'Attention':'Info'}</span></div>`}
+
+function production(){return header('Production','Opérations • Aujourd’hui','<button class="btn primary" onclick="openProduction()"><i data-lucide="plus" class="icon"></i>Nouvelle production</button>')+
+`<div class="kpis">${kpi('PRODUCTIONS EN COURS','4','2 lots à valider','up','factory')}${kpi('UNITÉS ATTENDUES','3 330','Rendement théorique','up','calculator')}${kpi('UNITÉS RÉELLES','3 240','-90 unités','warn','package-check')}${kpi('ÉCART','-2,7 %','À justifier','warn','scale')}</div>
+<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="Rechercher une production..."></div><select class="input"><option>Tous les statuts</option><option>En cours</option><option>Terminée</option><option>À valider</option></select><button class="btn">Aujourd’hui ▾</button></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Ordre</th><th>Produit / recette</th><th>Lots</th><th>Théorique</th><th>Réel</th><th>Rendement</th><th>Statut</th><th></th></tr></thead><tbody>
+${row(['PRD-000184','Pain traditionnel','1 sac','300','292','97,3 %','À valider'])}${row(['PRD-000183','Croissant','4 lots','800','800','100 %','Terminée'])}${row(['PRD-000182','Cake nature','2 lots','60','58','96,7 %','À valider'])}${row(['PRD-000181','Gâteau chocolat','1 lot','12','12','100 %','Terminée'])}
+</tbody></table></div></div>`}
+function row(a){let status=a[a.length-1], cls=status==='Terminée'?'success':status==='À valider'?'warning':status==='Critique'?'danger':'info';return `<tr>${a.slice(0,-1).map((x,i)=>`<td class="${i>2?'num':''}">${x}</td>`).join('')}<td><span class="badge b-${cls}">${status}</span></td><td><button class="btn" onclick="toast('Fiche ${a[0]} ouverte')">Ouvrir</button></td></tr>`}
+
+function stocks(){return header('Stocks','Inventaire temps réel','<button class="btn primary" onclick="toast(\'Nouvel inventaire créé\')"><i data-lucide="clipboard-list" class="icon"></i>Inventaire</button>')+
+`<div class="kpis">${kpi('DISPONIBLE','24 860','unités','up','boxes')}${kpi('STOCK FAIBLE','12','à surveiller','warn','triangle-alert')}${kpi('CRITIQUE','7','action requise','danger','octagon-alert')}${kpi('EN COMMANDE','4 280','unités en transit','up','truck')}</div>
+<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="Produit, SKU, code-barres..."></div><select class="input"><option>Tous les sites</option><option>Boulangerie Centre</option><option>Boulangerie Cocody</option></select><select class="input"><option>Tous les états</option><option>Normal</option><option>Faible</option><option>Critique</option><option>Rupture</option></select><button class="btn">Exporter ▾</button></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Produit</th><th>Type</th><th>Stock</th><th>Seuil</th><th>Réservé</th><th>Disponible</th><th>État</th><th></th></tr></thead><tbody>
+${stockRow('Farine 50 kg','Matière première','24 sacs','10','2','22','Normal')}${stockRow('Levure','Matière première','8 paquets','10','0','8','Faible')}${stockRow('Sel','Matière première','2 sacs','5','0','2','Critique')}${stockRow('Baguette','Produit fini','86','30','0','86','Normal')}${stockRow('Croissant','Produit fini','18','25','4','14','Faible')}${stockRow('Gâteau chocolat','Produit fini','0','4','0','0','Rupture')}</tbody></table></div></div>`}
+function stockRow(a,b,c,d,e,f,s){let cls=s==='Normal'?'success':s==='Faible'?'warning':'danger';return `<tr><td><strong>${a}</strong><div class="tiny">SKU-${a.replaceAll(' ','-').toUpperCase()}</div></td><td>${b}</td><td class="num">${c}</td><td class="num">${d}</td><td class="num">${e}</td><td class="num"><strong>${f}</strong></td><td><span class="badge b-${cls}">${s}</span></td><td><button class="btn" onclick="toast('Historique de ${a}')">Mouvements</button></td></tr>`}
+
+function purchases(){return header('Achats & réceptions','Approvisionnement','<button class="btn primary" onclick="openPurchase()"><i data-lucide="plus" class="icon"></i>Nouvelle commande</button>')+
+`<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="Commande, fournisseur..."></div><select class="input"><option>Tous les statuts</option><option>En attente</option><option>Commandée</option><option>Partiellement livrée</option><option>Livrée</option><option>Validée</option></select><button class="btn">Réceptions à contrôler <span class="badge b-warning">3</span></button></div>
+<table class="table"><thead><tr><th>Commande</th><th>Fournisseur</th><th>Site</th><th>Date</th><th>Total</th><th>Statut</th><th>Action</th></tr></thead><tbody>
+${row(['PO-00231','Fournisseur Ivoire','Boulangerie Centre','30/09/2026','1 850 000 FCFA','En attente'])}${row(['PO-00230','Minoterie Abidjan','Boulangerie Centre','29/09/2026','3 240 000 FCFA','Partiellement livrée'])}${row(['PO-00229','Agro Supply','Boulangerie Cocody','28/09/2026','780 000 FCFA','Validée'])}</tbody></table></div>`}
+function sales(){return header('Ventes','Commercial • aujourd’hui','<button class="btn primary" onclick="openPOS()"><i data-lucide="monitor-smartphone" class="icon"></i>Nouvelle vente</button>')+
+`<div class="kpis">${kpi('CA DU JOUR','2 450 000 FCFA','1 284 ventes','up','banknote')}${kpi('PARTICULIERS','1 720 000','70 % du CA','up','users')}${kpi('GROSSISTES','730 000','30 % du CA','up','store')}${kpi('CRÉANCES','185 000','4 comptes','warn','circle-dollar-sign')}</div>
+<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="N° vente, client, caissier..."></div><button class="btn">Aujourd’hui ▾</button><button class="btn">Période</button><button class="btn">Exporter ▾</button></div>
+<table class="table"><thead><tr><th>Vente</th><th>Client</th><th>Articles</th><th>Paiement</th><th>Total</th><th>Caissier</th><th>Statut</th></tr></thead><tbody>
+${row(['SALE-00045','Comptoir','6','Espèces','3 300 FCFA','Awa','Validée'])}${row(['SALE-00044','Boulangerie ABC','120','Virement','96 000 FCFA','Kouassi','Validée'])}${row(['SALE-00043','Comptoir','4','Mobile Money','4 200 FCFA','Awa','Validée'])}${row(['SALE-00042','Hôtel XYZ','38','À crédit','42 000 FCFA','Kouassi','En attente'])}</tbody></table></div>`}
+function losses(){return header('Pertes & invendus','Contrôle des écarts','<button class="btn primary" onclick="openLoss()"><i data-lucide="plus" class="icon"></i>Déclarer une perte</button>')+
+`<div class="kpis">${kpi('PERTES DU JOUR','85 000 FCFA','32 opérations','warn','trash-2')}${kpi('INVENDUS','124','unités','warn','package-x')}${kpi('EXPIRÉS','42','à traiter','danger','calendar-x')}${kpi('ÉCARTS','8','justifications','warn','triangle-alert')}</div>
+<div class="card panel"><table class="table"><thead><tr><th>Référence</th><th>Produit / lot</th><th>Quantité</th><th>Motif</th><th>Valeur</th><th>Utilisateur</th><th>Statut</th></tr></thead><tbody>
+${row(['LOSS-0042','Croissant • #20260930-002','15','Péremption','12 000 FCFA','Awa','Validée'])}${row(['LOSS-0041','Baguette • #20261001-001','8','Défaut production','4 000 FCFA','Kouassi','À justifier'])}${row(['LOSS-0040','Cake nature • #20260929-004','3','Invendu','10 500 FCFA','Awa','Validée'])}</tbody></table></div>`}
+function customers(){return listPage('Clients particuliers','Clientèle','Ajouter un client','clients',[['CLI-00031','Client comptoir','0700000000','42 ventes','125 000 FCFA'],['CLI-00030','Nadia Kouamé','0500000000','18 ventes','86 000 FCFA'],['CLI-00029','Moussa Traoré','0100000000','12 ventes','54 500 FCFA']])}
+function wholesalers(){return header('Grossistes','Commercial','<button class="btn primary" onclick="openSimple(\'Nouveau grossiste\')"><i data-lucide="plus" class="icon"></i>Nouveau grossiste</button>')+
+`<div class="grid3"><div class="card panel"><div class="tiny">GROSSISTES ACTIFS</div><div class="value" style="font-size:30px;font-weight:800">24</div><div class="tiny">+3 ce mois</div></div><div class="card panel"><div class="tiny">CA ANNUEL</div><div class="value" style="font-size:30px;font-weight:800">184,5 M</div><div class="tiny">FCFA</div></div><div class="card panel"><div class="tiny">RISTOURNES PROJETÉES</div><div class="value" style="font-size:30px;font-weight:800">3,2 M</div><div class="tiny">FCFA</div></div></div>
+<div class="card panel" style="margin-top:16px"><table class="table"><thead><tr><th>Grossiste</th><th>Contact</th><th>Achats annuels</th><th>CA</th><th>Prix</th><th>Statut</th></tr></thead><tbody>
+${row(['Boulangerie ABC','07 00 00 00 01','82 400 pains','41 200 000 FCFA','Prix grossiste','Actif'])}${row(['Hôtel XYZ','05 00 00 00 02','54 200 unités','32 800 000 FCFA','Contrat B','Actif'])}${row(['Restaurant Chez Nous','01 00 00 00 03','31 800 unités','18 700 000 FCFA','Prix grossiste','Actif'])}</tbody></table></div>`}
+function rebates(){return header('Ristournes','Grossistes • exercice 2026','<button class="btn primary" onclick="openSimple(\'Nouvelle règle de ristourne\')"><i data-lucide="plus" class="icon"></i>Configurer</button>')+
+`<div class="card panel"><div class="panel-head"><div><div class="h2">Paliers configurés</div><div class="tiny">Exemple de configuration — administrable</div></div><span class="badge b-info">2026</span></div><table class="table"><thead><tr><th>Seuil annuel</th><th>Taux</th><th>Critère</th><th>État</th></tr></thead><tbody><tr><td>0 — 50 000</td><td>0 %</td><td>Quantité</td><td><span class="badge b-neutral">Actif</span></td></tr><tr><td>50 001 — 100 000</td><td>1 %</td><td>Quantité</td><td><span class="badge b-success">Actif</span></td></tr><tr><td>100 001 — 200 000</td><td>2 %</td><td>Quantité</td><td><span class="badge b-success">Actif</span></td></tr><tr><td>&gt; 200 000</td><td>3 %</td><td>Quantité</td><td><span class="badge b-success">Actif</span></td></tr></tbody></table></div>
+<div class="card panel" style="margin-top:16px"><div class="panel-head"><div class="h2">Calcul annuel</div><button class="btn">Exporter ▾</button></div><table class="table"><thead><tr><th>Grossiste</th><th>Quantité</th><th>CA éligible</th><th>Palier</th><th>Ristourne théorique</th><th>Validation</th></tr></thead><tbody><tr><td>Boulangerie ABC</td><td class="num">82 400</td><td class="num">41 200 000</td><td>1 %</td><td class="num">412 000 FCFA</td><td><span class="badge b-warning">À valider</span></td></tr><tr><td>Hôtel XYZ</td><td class="num">54 200</td><td class="num">32 800 000</td><td>1 %</td><td class="num">328 000 FCFA</td><td><span class="badge b-success">Validée</span></td></tr></tbody></table></div>`}
+function suppliers(){return listPage('Fournisseurs','Approvisionnement','Nouveau fournisseur','suppliers',[['Fournisseur Ivoire','07 00 00 10 01','Farine, levure','12 commandes'],['Minoterie Abidjan','05 00 00 20 02','Farine','8 commandes'],['Agro Supply','01 00 00 30 03','Emballages, sel','6 commandes']])}
+function employees(){return listPage('Employés','Ressources humaines','Nouvel employé','employees',[['Kouassi Jean','Responsable production','Boulangerie Centre','CDI'],['Awa Kouassi','Caissière','Boulangerie Centre','CDI'],['Mariam Yao','Responsable vente','Boulangerie Cocody','CDI']])}
+function payroll(){return header('Paie','Ressources humaines','<button class="btn primary" onclick="openSimple(\'Nouvelle période de paie\')"><i data-lucide="plus" class="icon"></i>Préparer la paie</button>')+
+`<div class="kpis">${kpi('MASSE SALARIALE','8 450 000 FCFA','Septembre 2026','up','wallet-cards')}${kpi('EMPLOYÉS','34','3 sites','up','users')}${kpi('AVANCES','620 000 FCFA','7 employés','warn','arrow-down-to-line')}${kpi('À PAYER','8 450 000 FCFA','30/09/2026','warn','calendar-clock')}</div>
+<div class="card panel"><table class="table"><thead><tr><th>Employé</th><th>Poste</th><th>Base</th><th>Primes</th><th>Retenues</th><th>Net</th><th>Statut</th></tr></thead><tbody>
+${row(['Kouassi Jean','Responsable production','420 000','40 000','0','460 000 FCFA','À payer'])}${row(['Awa Kouassi','Caissière','280 000','20 000','30 000','270 000 FCFA','À payer'])}${row(['Mariam Yao','Responsable vente','390 000','50 000','0','440 000 FCFA','Payée'])}</tbody></table></div>`}
+function expenses(){return header('Charges','Dépenses d’exploitation','<button class="btn primary" onclick="openSimple(\'Nouvelle charge\')"><i data-lucide="plus" class="icon"></i>Ajouter une charge</button>')+
+`<div class="grid3"><div class="card panel"><div class="tiny">CE MOIS</div><div style="font-size:28px;font-weight:800">4 280 000 FCFA</div></div><div class="card panel"><div class="tiny">ÉLECTRICITÉ</div><div style="font-size:28px;font-weight:800">1 240 000 FCFA</div></div><div class="card panel"><div class="tiny">MAINTENANCE</div><div style="font-size:28px;font-weight:800">680 000 FCFA</div></div></div><div class="card panel" style="margin-top:16px"><table class="table"><thead><tr><th>Date</th><th>Catégorie</th><th>Site</th><th>Bénéficiaire</th><th>Montant</th><th>Paiement</th></tr></thead><tbody><tr><td>30/09/2026</td><td>Électricité</td><td>Centre</td><td>Compagnie Ivoirienne</td><td class="num">420 000 FCFA</td><td>Virement</td></tr><tr><td>29/09/2026</td><td>Maintenance</td><td>Cocody</td><td>Tech Services</td><td class="num">180 000 FCFA</td><td>Espèces</td></tr></tbody></table></div>`}
+function reports(){return header('Rapports','Analyse & pilotage','<button class="btn">Exporter ▾</button>')+
+`<div class="card panel"><div class="filters"><button class="btn primary">Ventes</button><button class="btn">Stocks</button><button class="btn">Production</button><button class="btn">Pertes</button><button class="btn">Grossistes</button><button class="btn">Charges</button></div><div class="filters"><button class="btn">01/10/2026 → 31/10/2026 ▾</button><button class="btn blue">Tous les sites ▾</button></div><div class="grid3" style="margin-top:16px"><div><div class="tiny">CA</div><div style="font-size:27px;font-weight:800">24 500 000 FCFA</div></div><div><div class="tiny">VENTES</div><div style="font-size:27px;font-weight:800">8 420</div></div><div><div class="tiny">PRODUITS VENDUS</div><div style="font-size:27px;font-weight:800">19 340</div></div></div><div class="chart" style="margin-top:18px;height:270px">${[35,44,55,48,70,62,75,68,84,78,91,88,100,94,82].map(x=>`<div class="bar" style="height:${x}%"></div>`).join('')}</div></div>`}
+function notifications(){return header('Notifications','Centre d’alertes','<button class="btn" onclick="toast(\'Notifications marquées comme lues\')">Tout marquer comme lu</button>')+
+`<div class="card panel">${[['Stock critique','Farine 50 kg — 8 sacs restants','Il y a 5 min','danger'],['Péremption proche','Croissants — lot #20261001-001','Il y a 18 min','warning'],['Commande en retard','PO-00231 — Fournisseur Ivoire','Il y a 32 min','warning'],['Écart de rendement','PRD-000184 — -8 pains','Il y a 1 h','info'],['Réception validée','PO-00229 — stock mis à jour','Il y a 2 h','success']].map(x=>`<div style="padding:15px 4px;border-bottom:1px solid var(--border);display:flex;gap:12px"><span class="badge b-${x[3]}">${x[3]==='danger'?'Critique':x[3]==='warning'?'Attention':x[3]==='success'?'Succès':'Info'}</span><div><strong>${x[0]}</strong><div class="small muted">${x[1]}</div><div class="tiny">${x[2]}</div></div></div>`).join('')}</div>`}
+function audit(){return header('Journal d’audit','Traçabilité des opérations','<button class="btn">Exporter ▾</button>')+
+`<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="Utilisateur, objet, référence..."></div><select class="input"><option>Toutes les actions</option><option>Vente validée</option><option>Production</option><option>Stock</option><option>Paramétrage</option></select><button class="btn">Période</button></div><table class="table"><thead><tr><th>Utilisateur</th><th>Action</th><th>Objet</th><th>Site</th><th>Date</th><th></th></tr></thead><tbody><tr><td><strong>Kouassi Jean</strong></td><td>Production validée</td><td>PRD-000183</td><td><span class="badge b-info">Centre</span></td><td>01/10/2026 15:42</td><td><button class="btn" onclick="openAudit()">Détails</button></td></tr><tr><td><strong>Awa Kouassi</strong></td><td>Vente validée</td><td>SALE-00045</td><td><span class="badge b-info">Centre</span></td><td>01/10/2026 15:38</td><td><button class="btn" onclick="openAudit()">Détails</button></td></tr><tr><td><strong>Admin</strong></td><td>Prix modifié</td><td>SKU-BAGUETTE</td><td><span class="badge b-info">Tous</span></td><td>01/10/2026 14:12</td><td><button class="btn" onclick="openAudit()">Détails</button></td></tr></tbody></table></div>`}
+function users(){return listPage('Utilisateurs','Administration','Nouvel utilisateur','users',[['Awa Kouassi','Caissière','Centre','Actif'],['Kouassi Jean','Responsable production','Centre','Actif'],['Admin','Super-Admin','Tous les sites','Actif']])}
+function roles(){return header('Rôles & permissions','Administration','<button class="btn primary" onclick="openSimple(\'Nouveau rôle\')"><i data-lucide="plus" class="icon"></i>Nouveau rôle</button>')+
+`<div class="grid3">${[['Super-Admin','Accès complet','Tous les modules','success'],['Responsable production','Production + stocks','Centre','info'],['Responsable vente','Ventes + clients + pertes','Centre','info'],['Caissier','Caisse + clients','Centre','neutral']].map(x=>`<div class="card panel"><div class="panel-head"><strong>${x[0]}</strong><span class="badge b-${x[3]}">${x[2]}</span></div><div class="small muted">${x[1]}</div><button class="btn" style="margin-top:14px;width:100%" onclick="toast('Permissions de ${x[0]}')">Gérer les permissions</button></div>`).join('')}</div>`}
+function settings(){return header('Paramètres','Administration','<button class="btn primary" onclick="toast(\'Paramètres enregistrés\')">Enregistrer</button>')+
+`<div class="grid2"><div class="card panel"><div class="h2">Général</div><div class="form-grid" style="margin-top:16px"><div class="field"><label>Nom du site</label><input class="input" value="Boulangerie Centre"></div><div class="field"><label>Code</label><input class="input" value="ABJ-CENTRE"></div><div class="field"><label>Téléphone</label><input class="input" value="+225 07 00 00 00 00"></div><div class="field"><label>Devise</label><select class="input"><option>FCFA</option></select></div></div></div>
+<div class="card panel"><div class="h2">Vente</div><div class="form-grid" style="margin-top:16px"><div class="field"><label>Paiement espèces</label><select class="input"><option>Activé</option></select></div><div class="field"><label>Mobile Money</label><select class="input"><option>Activé</option></select></div><div class="field"><label>Scanner code-barres</label><select class="input"><option>Activé</option></select></div><div class="field"><label>Impression ticket</label><select class="input"><option>Après validation</option></select></div></div></div>
+<div class="card panel"><div class="h2">Production</div><div style="margin-top:15px;display:grid;gap:12px">${['FEFO pour produits périssables','Bloquer production si matière insuffisante','Créer automatiquement les lots','Alerter sur écart de rendement'].map(x=>`<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" checked><span class="small">${x}</span></label>`).join('')}</div></div>
+<div class="card panel"><div class="h2">Notifications</div><div style="margin-top:15px;display:grid;gap:12px">${['Stock critique','Produit proche péremption','Commande en retard','Production insuffisante'].map(x=>`<label style="display:flex;justify-content:space-between;align-items:center"><span class="small">${x}</span><input type="checkbox" checked></label>`).join('')}</div></div></div>`}
+function listPage(title,sub,action,kind,data){return header(title,sub,`<button class="btn primary" onclick="openSimple('${action}')"><i data-lucide="plus" class="icon"></i>${action}</button>`)+`<div class="card panel"><div class="filters"><div class="search"><i data-lucide="search" class="icon"></i><input class="input" placeholder="Rechercher..."></div><button class="btn">Tous les sites ▾</button><button class="btn">Statut ▾</button><button class="btn">Exporter ▾</button></div><table class="table"><thead><tr>${data[0].map((_,i)=>`<th>${['Nom','Poste / Contact','Site / Catégorie','Informations'][i]||'Info'}</th>`).join('')}<th>Action</th></tr></thead><tbody>${data.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}<td><button class="btn" onclick="toast('Fiche ouverte')">Ouvrir</button></td></tr>`).join('')}</tbody></table></div>`}
+
+function openPOS(){document.getElementById('pos').classList.add('open');renderPOS();document.body.style.overflow='hidden'}
+function closePOS(){document.getElementById('pos').classList.remove('open');document.body.style.overflow='';}
+let activeCat='Toutes';
+function renderPOS(){document.getElementById('cats').innerHTML=['Toutes','Pains','Viennoiseries','Pâtisserie','Sandwichs','Boissons','Plats'].map(c=>`<button class="cat ${activeCat===c?'active':''}" onclick="activeCat='${c}';renderPOSProducts();renderCats()">${c}</button>`).join('');renderPOSProducts();lucide.createIcons()}
+function renderCats(){document.getElementById('cats').innerHTML=['Toutes','Pains','Viennoiseries','Pâtisserie','Sandwichs','Boissons','Plats'].map(c=>`<button class="cat ${activeCat===c?'active':''}" onclick="activeCat='${c}';renderPOSProducts();renderCats()">${c}</button>`).join('')}
+function renderPOSProducts(){let q=(document.getElementById('posSearch')?.value||'').toLowerCase();let arr=products.filter(x=>(activeCat==='Toutes'||x.cat===activeCat)&&(!q||`${x.n} ${x.d}`.toLowerCase().includes(q)));document.getElementById('products').innerHTML=arr.map((x,i)=>`<button class="product" onclick="addCart('${x.n}')"><div class="prod-photo">${x.e}</div><div class="prod-body"><div class="prod-name">${x.n}</div><div class="prod-desc">${x.d}</div><div class="price">${money(x.p)}</div><div class="stock ${x.s<10?'danger':x.s<25?'warn':'up'}">● ${x.s===0?'Rupture':x.s<10?'Stock critique':x.s<25?'Stock faible':'Disponible'} · ${x.s}</div></div></button>`).join('')||`<div class="empty" style="grid-column:1/-1"><strong>Aucun produit</strong>Essayez une autre recherche ou catégorie.</div>`;lucide.createIcons()}
+function addCart(name){let p=products.find(x=>x.n===name);let c=cart.find(x=>x.n===name);if(c)c.q++;else cart.push({n:p.n,p:p.p,q:1});renderCart();toast(`${name} ajouté au panier`)}
+function renderCart(){let total=cart.reduce((s,x)=>s+x.p*x.q,0), count=cart.reduce((s,x)=>s+x.q,0);document.getElementById('cartItems').innerHTML=cart.length?cart.map(x=>`<div class="cart-item"><div class="ci-top"><span>${x.n}</span><span>${money(x.p*x.q)}</span></div><div class="qty"><button class="qbtn" onclick="changeQ('${x.n}',-1)">−</button><strong>${x.q}</strong><button class="qbtn" onclick="changeQ('${x.n}',1)">+</button><button class="btn" style="margin-left:auto;min-height:32px;padding:0 8px" onclick="removeCart('${x.n}')"><i data-lucide="trash-2" class="icon"></i></button></div></div>`).join(''):`<div class="empty"><strong>Panier vide</strong>Ajoutez des produits pour commencer la vente.</div>`;document.getElementById('subtotal').textContent=money(total);document.getElementById('total').textContent=money(total);document.getElementById('payAmount').textContent=money(total);document.getElementById('cartCount').textContent=`${count} article${count!==1?'s':''}`;lucide.createIcons()}
+function changeQ(n,d){let x=cart.find(x=>x.n===n);if(!x)return;x.q+=d;if(x.q<=0)cart=cart.filter(x=>x.n!==n);renderCart()}
+function removeCart(n){cart=cart.filter(x=>x.n!==n);renderCart();toast('Article supprimé')}
+function checkout(){if(!cart.length){toast('Ajoutez au moins un article');return}openPayment()}
+function openPayment(){document.getElementById('modalContent').innerHTML=`<div class="modal-head"><div><div class="h2">Paiement</div><div class="tiny">Vente #54-N000001</div></div><button class="btn" onclick="closeModal()">×</button></div><div class="modal-body"><div style="text-align:center;padding:12px"><div class="tiny">TOTAL À PAYER</div><div style="font-size:34px;font-weight:850;margin:6px 0">${money(cart.reduce((s,x)=>s+x.p*x.q,0))}</div></div><div class="grid2"><button class="btn primary" style="height:74px" onclick="validatePayment('Espèces')">💵 ESPÈCES</button><button class="btn" style="height:74px" onclick="validatePayment('Carte')">💳 CARTE</button><button class="btn" style="height:74px" onclick="validatePayment('Mobile Money')">📱 MOBILE MONEY</button><button class="btn" style="height:74px" onclick="validatePayment('Virement')">🏦 VIREMENT</button></div><div class="card panel" style="margin-top:14px"><div class="small muted">Paiement multi-mode disponible</div><div style="display:flex;justify-content:space-between;margin-top:8px"><span>Espèces</span><strong>0 FCFA</strong></div><div style="display:flex;justify-content:space-between"><span>Reste</span><strong>${money(cart.reduce((s,x)=>s+x.p*x.q,0))}</strong></div></div></div>`;openModal()}
+function validatePayment(m){closeModal();toast(`Paiement ${m} confirmé — vente validée`);cart=[];renderCart()}
+function openModal(){document.getElementById('modal').classList.add('open')}function closeModal(){document.getElementById('modal').classList.remove('open')}
+function openAlerts(){go('notifications')}
+function openSimple(title){document.getElementById('modalContent').innerHTML=`<div class="modal-head"><div><div class="h2">${title}</div><div class="tiny">Formulaire prototype</div></div><button class="btn" onclick="closeModal()">×</button></div><div class="modal-body"><div class="form-grid"><div class="field"><label>Nom / référence</label><input class="input" placeholder="Saisir..."></div><div class="field"><label>Site</label><select class="input"><option>Boulangerie Centre</option><option>Boulangerie Cocody</option></select></div><div class="field"><label>Statut</label><select class="input"><option>Actif</option><option>En attente</option></select></div><div class="field"><label>Commentaire</label><input class="input" placeholder="Optionnel"></div></div></div><div class="modal-foot"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn primary" onclick="closeModal();toast('Enregistrement effectué')">Enregistrer</button></div>`;openModal()}
+function openProduction(){document.getElementById('modalContent').innerHTML=`<div class="modal-head"><div><div class="h2">Nouvelle production</div><div class="tiny">Calcul automatique des besoins et du rendement</div></div><button class="btn" onclick="closeModal()">×</button></div><div class="modal-body"><div class="stepper"><div class="step active">1. Configuration</div><div class="step">2. Contrôle</div><div class="step">3. Validation</div></div><div class="form-grid"><div class="field"><label>Site</label><select class="input"><option>Boulangerie Centre</option></select></div><div class="field"><label>Recette</label><select class="input"><option>Pain traditionnel</option><option>Croissant</option><option>Cake nature</option></select></div><div class="field"><label>Lots / sacs</label><input class="input" type="number" value="1"></div><div class="field"><label>Date</label><input class="input" type="date" value="2026-10-01"></div></div><div class="card panel" style="margin-top:14px"><div class="panel-head"><div><strong>Besoins calculés</strong><div class="tiny">Pour 1 sac • rendement théorique 300 pains</div></div><span class="badge b-success">Stock disponible</span></div><table class="table"><tr><td>Farine</td><td class="num">1 sac</td><td><span class="badge b-success">24 disponibles</span></td></tr><tr><td>Améliorant</td><td class="num">1 paquet</td><td><span class="badge b-success">16 disponibles</span></td></tr><tr><td>Levure</td><td class="num">1 paquet</td><td><span class="badge b-warning">8 disponibles</span></td></tr></table></div></div><div class="modal-foot"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn primary" onclick="closeModal();toast('Ordre de production créé — contrôle effectué')">Créer la production</button></div>`;openModal()}
+function openPurchase(){openSimple('Nouvelle commande fournisseur')}
+function openLoss(){openSimple('Déclarer une perte')}
+function openAudit(){document.getElementById('modalContent').innerHTML=`<div class="modal-head"><div><div class="h2">Détail de l’opération</div><div class="tiny">SALE-00045 • audit complet</div></div><button class="btn" onclick="closeModal()">×</button></div><div class="modal-body"><div class="timeline"><div class="event"><strong>Qui ?</strong><div class="small muted">Awa Kouassi • Caissière</div></div><div class="event"><strong>Quoi ?</strong><div class="small muted">Vente validée</div></div><div class="event"><strong>Quand ?</strong><div class="small muted">01/10/2026 à 15:38</div></div><div class="event"><strong>Où ?</strong><div class="small muted">Boulangerie Centre</div></div><div class="event"><strong>Résultat</strong><div class="small muted">3 300 FCFA • espèces • 3 lignes</div></div></div></div><div class="modal-foot"><button class="btn" onclick="closeModal()">Fermer</button></div>`;openModal()}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+buildNav();render();
+</script>
+</body>
+</html>

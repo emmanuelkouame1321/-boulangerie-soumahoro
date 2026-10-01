@@ -54,6 +54,13 @@ final class Navigation
      */
     private static function isItemAllowed(array $item, ?Authenticatable $user): bool
     {
+        // Un module dont la route n'existe pas encore ne doit pas produire
+        // de lien mort : tant que la phase correspondante n'est pas livrée,
+        // l'entrée est simplement absente du menu.
+        if (! self::isReachable($item)) {
+            return false;
+        }
+
         $permission = $item['permission'] ?? null;
 
         if ($permission === null) {
@@ -69,6 +76,34 @@ final class Navigation
 
         if ($user instanceof Authorizable) {
             return $user->can($permission);
+        }
+
+        return false;
+    }
+
+    /**
+     * Une route existe-t-elle pour cette entrée de menu ?
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private static function isReachable(array $item): bool
+    {
+        if (isset($item['route']) && Route::has((string) $item['route'])) {
+            return true;
+        }
+
+        $path = trim((string) ($item['path'] ?? ''), '/');
+
+        if ($path === '') {
+            return false;
+        }
+
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            $uri = $route->uri();
+
+            if ($uri === $path || str_starts_with($uri, $path.'/')) {
+                return true;
+            }
         }
 
         return false;
