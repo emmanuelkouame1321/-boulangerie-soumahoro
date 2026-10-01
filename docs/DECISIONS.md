@@ -626,6 +626,70 @@ entrée qui la remplace.
 
 ---
 
+## ADR-021 — Exports en file d'attente, audit automatique, canaux de notification
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** la Phase 10 doit livrer les notifications (§22), la
+  file d'attente pour les traitements lourds (§48, §53-13) et l'audit
+  avancé (§32). Trois questions restaient ouvertes : un export est-il
+  produit pendant la requête ou en arrière-plan ? quels objets sont
+  journalisés automatiquement ? qui reçoit les emails d'alerte et qui
+  décide des canaux ?
+- **Décisions :**
+  1. **Les exports passent en queue.** `ExportController::store()`
+     enregistre la demande (`pending`) et dispatche `GenerateExport`,
+     qui écrit le fichier dans `storage/app/private/exports/` puis passe
+     la ligne en `ready` (ou `failed` avec le message). L'écran
+     « Téléchargements » (`/exports`) sert le fichier 7 jours, puis la
+     commande planifiée `boulangerie:exports-prune` (03:15) supprime les
+     fichiers expirés et les échecs de plus de 24 h. Un export
+     n'appartient qu'à son demandeur, et la table porte `bakery_id`
+     (nullable pour la consolidation) : l'écran est isolé par site comme
+     le reste.
+  2. **La permission dépend de la nature de l'export.**
+     `report.export` pour les 8 rapports, `inventory.view` pour le grand
+     livre, `audit.view` pour le journal ; un type inconnu répond 404.
+     Hors Super-Admin, le périmètre est toujours borné au site courant
+     (jamais la consolidation).
+  3. **L'audit automatique est opt-in.** Le trait `AuditsChanges` est
+     posé sur les 11 modèles critiques du cahier (produit, recette,
+     prix, mouvement de stock, vente, perte, charge, ristourne,
+     versement de paie, réception, ordre de production) ; les
+     changements de permissions d'un rôle sont journalisés explicitement
+     depuis `RoleController`. `AuditLogger` reste le seul point
+     d'écriture, l'insertion suit la transaction du modèle, `user_name`
+     fige le nom, le mot de passe et le jeton de session ne sont jamais
+     consignés, et un changement de `status` nomme l'action
+     (`production_order.validated` plutôt que `.updated`).
+  4. **Deux canaux de notification, configurables par site.**
+     `internal` (écran `/notifications`) et `email` (queue). Les
+     valeurs par défaut vivent dans
+     `config('boulangerie.notification_channels')` — email activé pour
+     `critical`, `expired` et `significant_loss` — et
+     `notification_preferences` (une ligne par site et par type) les
+     surcharge. Les destinataires sont les utilisateurs **affectés au
+     site** ayant `alert.view` ; WhatsApp/SMS reste une extension
+     future. L'écran `/settings/notifications` est sous `settings.view`
+     (c'est une politique de site, pas un réglage individuel).
+  5. **Pas de cache sur les rapports.** Le cache reste réservé à la
+     configuration et à la navigation : un rapport mis en cache
+     masquerait une vente du jour, alors que le volume actuel ne le
+     justifie pas (ADR-020).
+- **Justification :** le travail en arrière-plan rend les gros exports
+  utilisables sur un poste modeste et évite les délais d'attente HTTP ;
+  l'audit opt-in garde le journal lisible (les tables de référence et
+  les lignes de détail ne le polluent pas) ; les préférences par site
+  évitent qu'un réglage individuel prive un site de ses alertes.
+- **Conséquence :** un worker de queue doit tourner en exploitation
+  (`php artisan queue:work`) et le scheduler doit être actif, sinon les
+  exports restent `pending` — la purge les supprime alors au bout de
+  24 h. Les rapports restant recalculés à chaque affichage, une lenteur
+  éventuelle se traiterait par un cache dédié (nouvel ADR), jamais par
+  un cache silencieux.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le

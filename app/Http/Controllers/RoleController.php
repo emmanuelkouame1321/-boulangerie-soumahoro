@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Audit\AuditLogger;
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
 use Illuminate\Http\RedirectResponse;
@@ -46,10 +47,20 @@ class RoleController extends Controller
         /** @var array{name: string, permissions?: list<string>} $data */
         $data = $request->validated();
 
+        $permissions = $data['permissions'] ?? [];
+
+        /** @var Role $role */
         $role = Role::create(['name' => $data['name'], 'guard_name' => 'web']);
-        $role->syncPermissions($data['permissions'] ?? []);
+        $role->syncPermissions($permissions);
 
         $this->forgetPermissionCache();
+
+        app(AuditLogger::class)->record(
+            'role.created',
+            $role,
+            [],
+            ['name' => $role->name, 'permissions' => $permissions],
+        );
 
         return redirect()
             ->route('settings.roles.index')
@@ -81,10 +92,23 @@ class RoleController extends Controller
         /** @var array{name: string, permissions?: list<string>} $data */
         $data = $request->validated();
 
+        $oldPermissions = $role->permissions()->pluck('name')->all();
+
         $role->update(['name' => $data['name']]);
         $role->syncPermissions($data['permissions'] ?? []);
 
         $this->forgetPermissionCache();
+
+        $newPermissions = $role->permissions()->pluck('name')->all();
+
+        if ($oldPermissions !== $newPermissions) {
+            app(AuditLogger::class)->record(
+                'role.permissions_updated',
+                $role,
+                ['permissions' => $oldPermissions],
+                ['permissions' => $newPermissions],
+            );
+        }
 
         return redirect()
             ->route('settings.roles.index')

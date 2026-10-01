@@ -488,7 +488,8 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   avec CA par site, Production avec alertes, Vente avec top produits),
   tendance 7 j (`x-ui.bar-chart`)
 - Export du grand livre `/inventory/movements/export` (CSV / Excel,
-  mêmes filtres que l'écran, permission `inventory.view`)
+  mêmes filtres que l'écran, permission `inventory.view`) — remplacé en
+  Phase 10 par la file d'attente `/exports` (kind `movements`)
 - Permissions : `expense.manage` et `report.export` ajoutées au
   catalogue ; `expense.view` et `report.view` (déjà déclarées) câblées
   sur les routes via middleware `permission:` — aucune vue n'est
@@ -496,10 +497,46 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   seed `ExpenseCategorySeeder`
 - 218 tests verts (790 assertions), Larastan, Pint et charte propres
 
-**Prochaine tâche : Phase 10 — optimisation, sécurité et qualité.**
- notifications/email, queue, cache, `audit_logs` + écran Audit, 2FA,
- transferts inter-sites, responsive, WCAG, documentation d'exploitation.
- Voir `ROADMAP.md`.
+**Phase 10 — optimisation, sécurité et qualité : en cours.**
+
+- Audit : `audit_logs` (insertion seule, `user_name` figé, objet conservé
+  après suppression, `bakery_id` nullable sans clé étrangère, index
+  `[bakery_id, created_at]`) ; `App\Domain\Audit\AuditLogger` est le
+  **seul** point d'écriture (`record()`, `created()`, `updated()`, le
+  `status` modifié nomme l'action, `SENSITIVE` exclut mot de passe et
+  jeton de session). Trait `AuditsChanges` (opt-in) posé sur 11 modèles
+  critiques ; les changements de permissions d'un rôle sont journalisés
+  depuis `RoleController`. Écran `/settings/audit` (`audit.view`) :
+  recherche, action, période, pagination, détail anciennes/nouvelles
+  valeurs
+- Notifications : `notification_preferences` (canaux `internal` /`email`
+  par site et par type), défauts dans
+  `config('boulangerie.notification_channels')`,
+  `App\Domain\Notifications\AlertNotifier` (`alertOpened()`,
+  `wants()`, `recipients()` = utilisateurs du site ayant `alert.view`),
+  `StockAlertMail` (ShouldQueue) ; `StockAlertService` notifie à chaque
+  ouverture d'alerte ; écran `/settings/notifications`
+  (`settings.view`) ; compteur d'alertes ouvertes sur la cloche de la
+  topbar (`View::composer`)
+- Queue : `GenerateExport` (ShouldQueue) produit le fichier dans
+  `storage/app/private/exports/` puis marque la ligne `ready` (7 jours)
+  ou `failed` avec le message d'erreur ; écran `/exports` (« Téléchargements »)
+  avec statuts, relance automatique et téléchargement réservé au
+  demandeur (410 si expiré) ; commande `boulangerie:exports-prune`
+  planifiée à 03:15
+- `app/Domain/Export/ExportContent` centralise le contenu des trois
+  familles d'exports (8 rapports, grand livre, audit) ;
+  `ReportExport::writeCsv()` / `writeXls()` écrivent sur disque (les
+  `csv()` / `xls()` en flux restent pour l'affichage direct)
+- Index de recherche : `[bakery_id, occurred_at]` sur `stock_movements`,
+  `[bakery_id, created_at]` sur `audit_logs`
+- 247 tests verts (895 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : finir la Phase 10 — cache de configuration et de
+navigation, 2FA optionnelle et sauvegardes documentées, transferts
+inter-sites (§19.3), revue responsive (§89), accessibilité WCAG 2.2 AA,
+scénarios de concurrence et documentation d'exploitation.** Voir
+`ROADMAP.md` et ADR-021.
 
 ### Repères utiles
 

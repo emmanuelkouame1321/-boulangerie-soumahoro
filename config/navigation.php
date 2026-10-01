@@ -56,6 +56,7 @@ return [
             'label' => 'Analyse',
             'items' => [
                 ['label' => 'Rapports', 'path' => 'reports', 'icon' => 'chart-no-axes-combined', 'permission' => 'report.view'],
+                ['label' => 'Téléchargements', 'path' => 'exports', 'icon' => 'download', 'permission' => null],
                 ['label' => 'Notifications', 'path' => 'notifications', 'icon' => 'bell', 'permission' => 'alert.view'],
                 ['label' => 'Audit', 'path' => 'settings/audit', 'icon' => 'file-clock', 'permission' => 'audit.view'],
             ],
@@ -68,6 +69,7 @@ return [
                 ['label' => 'Rôles & permissions', 'path' => 'settings/roles', 'icon' => 'shield-check', 'permission' => 'role.view'],
                 ['label' => 'Boulangeries', 'path' => 'settings/bakeries', 'icon' => 'building-2', 'permission' => 'bakery.view'],
                 ['label' => 'Unités', 'path' => 'settings/units', 'icon' => 'scale', 'permission' => 'unit.view'],
+                ['label' => 'Préférences', 'path' => 'settings/notifications', 'icon' => 'bell', 'permission' => 'settings.view'],
                 ['label' => 'Paramètres', 'path' => 'settings', 'icon' => 'settings', 'permission' => 'settings.view'],
             ],
         ],

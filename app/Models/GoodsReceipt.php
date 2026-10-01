@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\GoodsReceiptStatus;
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\GoodsReceiptFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,7 +34,7 @@ use Illuminate\Support\Carbon;
 class GoodsReceipt extends Model
 {
     /** @use HasFactory<GoodsReceiptFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

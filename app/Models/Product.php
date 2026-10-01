@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\PriceType;
 use App\Enums\ProductType;
+use App\Models\Concerns\AuditsChanges;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -40,7 +41,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
-    use HasFactory, SoftDeletes;
+    use AuditsChanges, HasFactory, SoftDeletes;
 
     /**
      * @var list<string>

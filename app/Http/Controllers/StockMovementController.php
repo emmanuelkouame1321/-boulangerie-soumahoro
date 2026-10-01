@@ -7,12 +7,9 @@ namespace App\Http\Controllers;
 use App\Enums\StockMovementType;
 use App\Models\Stock;
 use App\Models\StockMovement;
-use App\Support\Format;
-use App\Support\ReportExport;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Écran Mouvements — grand livre de stock, filtrable et paginé (cahier
@@ -46,55 +43,13 @@ class StockMovementController extends Controller
             'from' => $from,
             'to' => $to,
             'typeOptions' => $this->typeOptions(),
-            'exportQuery' => array_filter([
+            'exportFilters' => array_filter([
                 'search' => $search,
                 'type' => $type,
                 'from' => $from,
                 'to' => $to,
             ], static fn (string $value): bool => $value !== ''),
         ]);
-    }
-
-    /**
-     * Export du grand livre (cahier §33, Design System §84) — CSV ou
-     * classeur SpreadsheetML, sans dépendance (ADR-020).
-     */
-    public function export(Request $request): Response
-    {
-        $this->authorize('viewAny', Stock::class);
-
-        $format = (string) $request->query('format', 'csv');
-        $from = (string) $request->query('from', '');
-        $to = (string) $request->query('to', '');
-        $filename = 'mouvements-de-stock'.($from !== '' || $to !== '' ? '-'.$from.'_'.$to : '');
-
-        $headers = ['Date', 'Heure', 'Produit', 'SKU', 'Type', 'Quantité', 'Unité', 'Stock après', 'Par', 'Motif'];
-        $rows = [];
-
-        $query = $this->filteredQuery($request)->with(['product.primaryUnit', 'user', 'unit']);
-
-        foreach ($query->get() as $movement) {
-            $symbol = data_get($movement, 'unit.symbol') ?? data_get($movement, 'product.primaryUnit.symbol');
-
-            $rows[] = [
-                $movement->occurred_at->format('d/m/Y'),
-                $movement->occurred_at->format('H:i'),
-                data_get($movement, 'product.name') ?? '—',
-                data_get($movement, 'product.sku') ?? '',
-                $movement->type->label(),
-                ($movement->type->increasesStock() ? '' : '-').Format::stock($movement->quantity),
-                $symbol ?? '',
-                Format::stock($movement->quantity_after),
-                data_get($movement, 'user.name') ?? '—',
-                $movement->reason ?? $movement->reference ?? '',
-            ];
-        }
-
-        if ($format === 'xls') {
-            return ReportExport::xls($filename.'.xls', 'Mouvements de stock', $headers, $rows);
-        }
-
-        return ReportExport::csv($filename.'.csv', $headers, $rows);
     }
 
     /**

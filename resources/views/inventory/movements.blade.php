@@ -9,8 +9,24 @@
         description="Chaque entrée, sortie, vente ou ajustement est historisé. Aucun mouvement n’est jamais supprimé."
     >
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" :href="route('inventory.movements.export', array_merge(['format' => 'csv'], $exportQuery))">CSV</x-ui.button>
-            <x-ui.button variant="secondary" icon="download" :href="route('inventory.movements.export', array_merge(['format' => 'xls'], $exportQuery))">Excel</x-ui.button>
+            <form method="POST" action="{{ route('exports.store') }}">
+                @csrf
+                <input type="hidden" name="kind" value="movements" />
+                <input type="hidden" name="format" value="csv" />
+                @foreach ($exportFilters as $filter => $value)
+                    <input type="hidden" name="filters[{{ $filter }}]" value="{{ $value }}" />
+                @endforeach
+                <x-ui.button type="submit" variant="secondary" icon="download">CSV</x-ui.button>
+            </form>
+            <form method="POST" action="{{ route('exports.store') }}">
+                @csrf
+                <input type="hidden" name="kind" value="movements" />
+                <input type="hidden" name="format" value="xls" />
+                @foreach ($exportFilters as $filter => $value)
+                    <input type="hidden" name="filters[{{ $filter }}]" value="{{ $value }}" />
+                @endforeach
+                <x-ui.button type="submit" variant="secondary" icon="download">Excel</x-ui.button>
+            </form>
             <x-ui.button variant="secondary" icon="arrow-left" :href="route('inventory.index')">Retour au stock</x-ui.button>
         </x-slot:actions>
     </x-layout.page-header>

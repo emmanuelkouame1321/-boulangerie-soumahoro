@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\SaleStatus;
 use App\Enums\SaleType;
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,7 +43,7 @@ use Illuminate\Support\Carbon;
 class Sale extends Model
 {
     /** @use HasFactory<SaleFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

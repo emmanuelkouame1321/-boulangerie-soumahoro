@@ -25,25 +25,52 @@ final class ReportExport
      */
     public static function csv(string $filename, array $headers, iterable $rows): StreamedResponse
     {
-        return response()->streamDownload(function () use ($headers, $rows): void {
+        return response()->streamDownload(static function () use ($headers, $rows): void {
             $handle = fopen('php://output', 'wb');
 
             if ($handle === false) {
                 return;
             }
 
-            // BOM UTF-8 : Excel reconnaît les accents.
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, $headers, ';');
-
-            foreach ($rows as $row) {
-                fputcsv($handle, array_map(static fn ($value): string => (string) $value, $row), ';');
-            }
-
-            fclose($handle);
+            self::writeCsvHandle($handle, $headers, $rows);
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * Écrit un CSV sur disque (exports en queue, ADR-021).
+     *
+     * @param  list<string>  $headers
+     * @param  iterable<int, array<int, int|float|string|null>>  $rows
+     */
+    public static function writeCsv(string $path, array $headers, iterable $rows): void
+    {
+        $handle = fopen($path, 'wb');
+
+        if ($handle === false) {
+            throw new \RuntimeException("Impossible d'ouvrir {$path} pour écriture.");
+        }
+
+        self::writeCsvHandle($handle, $headers, $rows);
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  list<string>  $headers
+     * @param  iterable<int, array<int, int|float|string|null>>  $rows
+     */
+    private static function writeCsvHandle($handle, array $headers, iterable $rows): void
+    {
+        // BOM UTF-8 : Excel reconnaît les accents.
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, $headers, ';');
+
+        foreach ($rows as $row) {
+            fputcsv($handle, array_map(static fn ($value): string => (string) $value, $row), ';');
+        }
+
+        fclose($handle);
     }
 
     /**
@@ -53,6 +80,32 @@ final class ReportExport
      * @param  iterable<int, array<int, int|float|string|null>>  $rows
      */
     public static function xls(string $filename, string $title, array $headers, iterable $rows): Response
+    {
+        return response(self::xml($title, $headers, $rows), 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
+     * Écrit un classeur SpreadsheetML sur disque (exports en queue,
+     * ADR-021).
+     *
+     * @param  list<string>  $headers
+     * @param  iterable<int, array<int, int|float|string|null>>  $rows
+     */
+    public static function writeXls(string $path, string $title, array $headers, iterable $rows): void
+    {
+        if (file_put_contents($path, self::xml($title, $headers, $rows)) === false) {
+            throw new \RuntimeException("Impossible d'écrire {$path}.");
+        }
+    }
+
+    /**
+     * @param  list<string>  $headers
+     * @param  iterable<int, array<int, int|float|string|null>>  $rows
+     */
+    private static function xml(string $title, array $headers, iterable $rows): string
     {
         $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
 
@@ -79,9 +132,6 @@ final class ReportExport
 
         $xml .= '</Table></Worksheet></Workbook>';
 
-        return response($xml, 200, [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $xml;
     }
 }

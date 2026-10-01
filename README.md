@@ -80,16 +80,27 @@ Démarre en parallèle le serveur HTTP, la queue, les logs (`pail`) et Vite.
 
 L'application est ensuite disponible sur <http://localhost:8000>.
 
-### Compte de démarrage (environnement local uniquement)
+### Comptes de démonstration (environnement local uniquement)
 
-| | |
-|---|---|
-| Email | `admin@soumahoro.test` |
-| Mot de passe | `password` |
-| Rôle | Super-Admin |
+Un compte par niveau, tous avec le mot de passe `password`, rattachés par
+defaut à la boulangerie de Cocody :
 
-Personnalisable via `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD` dans
-`.env`. Ce compte n'est **jamais** créé hors `local` / `testing`.
+| Email | Mot de passe | Rôle |
+|---|---|---|
+| `admin@soumahoro.test` | `password` | Super-Admin (tous les sites) |
+| `production@soumahoro.test` | `password` | Responsable production |
+| `vente@soumahoro.test` | `password` | Responsable vente |
+| `caisse@soumahoro.test` | `password` | Caissier |
+
+Le compte Super-Admin est personnalisable via `SUPER_ADMIN_EMAIL` et
+`SUPER_ADMIN_PASSWORD` dans `.env`. Tous ces comptes ne sont **jamais**
+créés hors `local` / `testing`.
+
+Pour régénérer les comptes de démonstration :
+
+```bash
+php artisan db:seed --class=Database\\Seeders\\DemoUsersSeeder --force
+```
 
 ---
 

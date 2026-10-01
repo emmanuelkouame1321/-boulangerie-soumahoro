@@ -22,15 +22,18 @@
 
     <div class="flex-1"></div>
 
-    <button
-        type="button"
-        onclick="window.toast('Centre d’alertes')"
+    <a
+        href="{{ route('notifications.index') }}"
         class="relative rounded-control border border-line-strong p-2 text-muted transition hover:bg-subtle hover:text-ink"
-        aria-label="Notifications"
+        aria-label="Notifications{{ ($openAlertCount ?? 0) > 0 ? ' — ' . $openAlertCount . ' alertes ouvertes' : '' }}"
     >
         <x-ui.icon name="bell" :size="18" />
-        <span class="absolute -top-1.5 -right-1.5 grid size-4 place-items-center rounded-full bg-danger text-[10px] font-bold text-white">7</span>
-    </button>
+        @if (($openAlertCount ?? 0) > 0)
+            <span class="absolute -top-1.5 -right-1.5 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                {{ $openAlertCount > 99 ? '99+' : $openAlertCount }}
+            </span>
+        @endif
+    </a>
 
     @auth
         <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">

@@ -8,11 +8,13 @@ use App\Domain\Inventory\StockMovementService;
 use App\Enums\Role;
 use App\Enums\StockMovementType;
 use App\Models\Bakery;
+use App\Models\Export;
 use App\Models\Product;
 use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class InventoryScreenTest extends TestCase
@@ -80,21 +82,32 @@ class InventoryScreenTest extends TestCase
 
         app(StockMovementService::class)->apply($bakery, $product, StockMovementType::SupplierIn, 12);
 
-        $this->actingAs($this->user(Role::SuperAdmin))
-            ->get(route('inventory.movements.export', ['format' => 'csv']))
-            ->assertOk()
-            ->assertDownload('mouvements-de-stock.csv');
+        $user = $this->user(Role::SuperAdmin);
+        Storage::fake('local');
 
-        $this->actingAs($this->user(Role::SuperAdmin))
-            ->get(route('inventory.movements.export', ['format' => 'xls']))
+        $this->actingAs($user)
+            ->post(route('exports.store'), ['kind' => 'movements', 'format' => 'csv'])
+            ->assertRedirect(route('exports.index'));
+
+        $export = Export::withoutBakeryScope()->latest('id')->firstOrFail();
+
+        $this->assertSame(Export::STATUS_READY, $export->status);
+
+        $this->actingAs($user)
+            ->get(route('exports.download', $export))
             ->assertOk()
-            ->assertSee('<Workbook', false);
+            ->assertDownload();
+
+        $this->assertStringContainsString(
+            'Produit',
+            Storage::disk('local')->get((string) $export->path),
+        );
     }
 
     public function test_the_movements_export_requires_the_inventory_permission(): void
     {
         $this->actingAs($this->user(Role::Cashier))
-            ->get(route('inventory.movements.export'))
+            ->post(route('exports.store'), ['kind' => 'movements', 'format' => 'csv'])
             ->assertForbidden();
     }
 

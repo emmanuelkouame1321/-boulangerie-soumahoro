@@ -241,6 +241,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notifications (cahier §22)
+    |--------------------------------------------------------------------------
+    | Canaux par défaut, par type d'alerte : `internal` pilote l'écran
+    | /notifications, `email` l'envoi différé en queue. Une ligne de
+    | `notification_preferences` par site et par type surcharge ces
+    | valeurs. Les destinataires d'un email sont les utilisateurs
+    | affectés au site ayant la permission `alert.view`.
+    */
+    'notification_channels' => [
+        'default' => ['internal' => true, 'email' => false],
+        'low' => ['internal' => true, 'email' => false],
+        'critical' => ['internal' => true, 'email' => true],
+        'cumulated' => ['internal' => true, 'email' => false],
+        'expiry_soon' => ['internal' => true, 'email' => false],
+        'expired' => ['internal' => true, 'email' => true],
+        'significant_loss' => ['internal' => true, 'email' => true],
+        'production_gap' => ['internal' => true, 'email' => false],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Grossistes (cahier §12)
     |--------------------------------------------------------------------------
     */

@@ -9,6 +9,7 @@ use App\Enums\Role;
 use App\Models\Bakery;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Export;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -16,6 +17,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ReportingTest extends TestCase
@@ -150,20 +152,59 @@ class ReportingTest extends TestCase
     {
         $this->sale(10, 500, now()->toDateString());
         $admin = $this->user(Role::SuperAdmin);
+        Storage::fake('local');
 
-        $this->actingAs($admin)
-            ->get(route('reports.export', ['kind' => 'sales', 'format' => 'csv']))
-            ->assertOk();
+        // CSV et Excel partent en file d'attente (ADR-021) : le fichier
+        // devient téléchargeable depuis l'écran Téléchargements.
+        foreach (['csv', 'xls'] as $format) {
+            $this->actingAs($admin)
+                ->post(route('exports.store'), [
+                    'kind' => 'report:sales',
+                    'format' => $format,
+                    'filters' => [
+                        'from' => now()->startOfMonth()->toDateString(),
+                        'to' => now()->toDateString(),
+                    ],
+                ])
+                ->assertRedirect(route('exports.index'));
+        }
 
-        $this->actingAs($admin)
-            ->get(route('reports.export', ['kind' => 'sales', 'format' => 'xls']))
-            ->assertOk()
-            ->assertSee('<Workbook', false);
+        $exports = Export::withoutBakeryScope()->orderBy('id')->get();
 
+        $this->assertCount(2, $exports);
+
+        foreach ($exports as $export) {
+            $this->assertSame(Export::STATUS_READY, $export->status);
+
+            $this->actingAs($admin)
+                ->get(route('exports.download', $export))
+                ->assertOk()
+                ->assertDownload();
+
+            $content = Storage::disk('local')->get((string) $export->path);
+
+            if ($export->format === 'xls') {
+                $this->assertStringContainsString('<Workbook', $content);
+            } else {
+                $this->assertStringContainsString('Produit', $content);
+            }
+        }
+
+        // L'impression reste directe : le navigateur imprime en PDF.
         $this->actingAs($admin)
-            ->get(route('reports.export', ['kind' => 'sales', 'format' => 'pdf']))
+            ->get(route('reports.print', ['kind' => 'sales']))
             ->assertOk()
             ->assertSee('Imprimer');
+    }
+
+    public function test_an_export_requires_the_right_permission(): void
+    {
+        $production = $this->user(Role::ProductionManager);
+
+        // Pas de permission report.export : la création est refusée.
+        $this->actingAs($production)
+            ->post(route('exports.store'), ['kind' => 'report:sales', 'format' => 'csv'])
+            ->assertForbidden();
     }
 
     public function test_reports_require_the_report_permission(): void

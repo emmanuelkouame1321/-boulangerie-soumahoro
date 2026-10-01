@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\PayrollPaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,7 +28,7 @@ use Illuminate\Support\Carbon;
 class PayrollPayment extends Model
 {
     /** @use HasFactory<PayrollPaymentFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

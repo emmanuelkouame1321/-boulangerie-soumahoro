@@ -47,6 +47,9 @@ App\Domain\Customers\WholesalerRebateService ← ristournes par palier
 App\Domain\Payroll\PayrollService
 App\Domain\Expenses\ExpenseService         ← enregistrement des charges
 App\Domain\Reporting\ReportingService      ← agrégats des 8 rapports + §55
+App\Domain\Audit\AuditLogger                ← unique point d'écriture de audit_logs
+App\Domain\Notifications\AlertNotifier      ← canaux et destinataires des alertes
+App\Domain\Export\ExportContent             ← contenu des exports (rapports, stock, audit)
 ```
 
 ## 3 bis. Convention Livewire
@@ -360,7 +363,7 @@ PayrollService     → openPeriod() / generate() / updateItem() / validate() / p
 
 ```
 ExpenseController    → charges : liste, saisie, modification, catégories
-ReportsController    → /reports, /reports/{kind}, /reports/{kind}/export
+ReportsController    → /reports, /reports/{kind}, /reports/{kind}/print
 DashboardController  → /dashboard (3 modes selon le rôle)
 ExpenseService       → record() / createCategory() / deactivateCategory()
 ReportingService     → sales() production() stock() purchases() losses()
@@ -384,8 +387,8 @@ ReportExport (Support) → csv() / xls() — aucun package tiers
 - **Exports sans dépendance.** CSV (BOM UTF-8, séparateur `;`),
   SpreadsheetML 2003 (`.xls` ouvert par Excel) et vue imprimable
   `reports.print` (`@media print` → « Imprimer → PDF »). Aucun dompdf ni
-  PhpSpreadsheet. Le grand livre des mouvements utilise les mêmes
-  formats via `/inventory/movements/export`, avec les filtres de l'écran.
+  PhpSpreadsheet. Depuis la Phase 10, les téléchargements passent par la
+  file d'attente — voir §19 et ADR-021.
 - **Permissions.** `ExpensePolicy` (`expense.view` / `expense.manage`,
   suppression toujours refusée) ; routes rapports sous
   `permission:report.view`, export sous `permission:report.export`.
@@ -393,3 +396,53 @@ ReportExport (Support) → csv() / xls() — aucun package tiers
   depuis le rôle connecté (Super-Admin consolidé + CA par site,
   Production alertes/écarts, Vente top produits) avec tendance 7 j via
   `x-ui.bar-chart` (valeurs 0-100 normalisées côté serveur).
+
+## 19. Audit, notifications et exports en arrière-plan
+
+```
+AuditLogController           → /settings/audit (audit.view)
+NotificationPreferenceController → /settings/notifications (settings.view)
+ExportController             → /exports, /exports/{export}/download
+GenerateExport (Job)         → écrit le fichier puis marque l'export prêt
+ExportPruneCommand           → boulangerie:exports-prune (03:15)
+AuditLogger                  → record() / created() / updated() / deleted()
+AuditsChanges (trait)        → hooks created / updated / deleted
+AlertNotifier                → alertOpened() / wants() / recipients()
+StockAlertMail (Notification)→ email d'alerte, ShouldQueue
+ExportContent                → catalogue(), build(), tables()
+```
+
+- **Audit.** `audit_logs` est en insertion seule : `user_name` fige le
+  nom à l'instant T, l'objet audité est conservé sous forme
+  `auditable_type` + `auditable_id` (le journal survit à la
+  suppression), `bakery_id` est nullable et **sans clé étrangère** (un
+  site supprimé n'efface pas son historique). `AuditLogger` est le seul
+  point d'écriture ; l'insertion suit la transaction du modèle, donc un
+  `rollback` efface aussi l'entrée. `AuditsChanges` est posé sur les 11
+  modèles critiques ; un `status` modifié nomme l'action
+  (`production_order.validated`), une modification sans changement réel
+  n'écrit rien. `AuditLogger::SENSITIVE` exclut `password` et
+  `remember_token`.
+- **Notifications.** `config('boulangerie.notification_channels')` donne
+  le défaut par type (`internal`, `email`) ; `notification_preferences`
+  (unique par `[bakery_id, type]`) surcharge par site. `AlertNotifier::
+  recipients()` ne retient que les utilisateurs **affectés au site**
+  ayant `alert.view` ; l'email part en queue (`StockAlertMail`).
+  `StockAlertService` appelle `alertOpened()` à chaque création
+  d'alerte, jamais à la mise à jour d'une alerte existante. La cloche de
+  la topbar affiche le compteur d'alertes ouvertes du site courant via
+  un `View::composer` (zéro sans `alert.view`).
+- **Exports en queue.** `ExportController::store()` valide `kind` et
+  `format`, contrôle la permission liée au type, borne au site courant
+  hors Super-Admin, crée la ligne `pending` puis dispatche
+  `GenerateExport`. Le job reconstruit le contenu depuis
+  `ExportContent::build($kind, $filters, $bakeryId)` — les filtres sont
+  donc rejouables —, écrit le fichier sur le disque `local` et
+  n'enregistre jamais un échec en exception non tracée : la ligne passe
+  en `failed` avec le message tronqué à 500 caractères.
+- **Sécurité du téléchargement.** Le fichier n'est servi qu'à son
+  demandeur (`export.user_id`), et uniquement tant que `expires_at`
+  n'est pas dépassé (sinon 410).
+- **Scheduler.** `routes/console.php` planifie `boulangerie:exports-prune`
+  chaque jour à 03:15 (cahier §40) ; la commande supprime les fichiers
+  avant les lignes.

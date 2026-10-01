@@ -184,7 +184,8 @@ voient des menus différents ✅ ; les données sont isolées par site
 - [x] Écran Stocks : stock temps réel, seuils, statuts, ajustement motivé
       (Design System §23, §44)
 - [x] Écran Mouvements : historique filtrable, paginé (Design System §34) —
-      export CSV / Excel livré en Phase 9 (`/inventory/movements/export`)
+      export CSV / Excel livré en Phase 9 (`/inventory/movements/export`),
+      déplacé en file d'attente en Phase 10 (`/exports`, kind `movements`)
 - [x] Composants `StockStatus`, `StockMovementBadge`, `ExpiryIndicator`
       (dossier `components/business/`)
 - [x] Tests : aucun stock négatif ; deux mouvements concurrents sur le
@@ -367,21 +368,39 @@ conservés).
 
 ---
 
-## Phase 10 — Optimisation, sécurité, qualité
+## Phase 10 — Optimisation, sécurité, qualité (en cours)
 
-- [ ] Notifications internes + email (canaux configurables)
-- [ ] Queue pour les traitements lourds (exports, recalculs, rapports)
-- [ ] Cache de configuration, élimination des N+1, index sur les colonnes
-      de recherche
-- [ ] Audit avancé : `audit_logs` (utilisateur, action, objet, ancienne et
-      nouvelle valeur, IP, date, site) et écran Audit
-- [ ] 2FA optionnelle, rate limiting, sauvegardes documentées
+- [x] Notifications internes + email : canaux configurables par site et
+      par type (`notification_preferences`), email en queue vers les
+      utilisateurs du site ayant `alert.view`, écran « Préférences »
+      (`/settings/notifications`) et compteur d'alertes sur la cloche
+- [x] Queue pour les traitements lourds : exports produits en
+      arrière-plan (`GenerateExport`), écran « Téléchargements »
+      (`/exports`) avec statuts, téléchargement réservé au demandeur et
+      purge planifiée `boulangerie:exports-prune`
+- [~] Index sur les colonnes de recherche : index composé
+      `[bakery_id, occurred_at]` sur `stock_movements` et
+      `[bakery_id, created_at]` sur `audit_logs` (les index de `products`,
+      `sales`, `customers`, `suppliers`, `employees`, `wholesalers`
+      existaient déjà) ; le cache de configuration et de navigation
+      reste à faire, les rapports ne sont pas cachés (décision du
+      propriétaire)
+- [x] Audit avancé : `audit_logs` (utilisateur, action, objet, ancienne et
+      nouvelle valeur, IP, date, site), journalisation automatique des
+      11 modèles critiques + des changements de permissions, écran
+      Audit filtrable avec détail des valeurs
+- [ ] 2FA optionnelle, rate limiting (limitation du login en place),
+      sauvegardes documentées
 - [ ] Transferts inter-sites (cahier §19.3)
 - [ ] Revue responsive complète (1440 / 1280 / 1024 / 768 / 390 — §89)
 - [ ] Audit d'accessibilité WCAG 2.2 AA
-- [ ] Couverture de tests complète (unitaire, fonctionnel, intégration,
-      concurrence)
+- [~] Couverture de tests complète : 247 tests verts sur les parcours
+      unitaires, fonctionnels et d'intégration ; les scénarios de
+      concurrence restent à ajouter
 - [ ] Documentation d'exploitation
+
+Voir ADR-021 pour l'arbitrage (exports en queue, audit automatique
+opt-in, canaux de notification).
 
 **Critère de sortie :** `composer ci` vert, checklist §89 entièrement
 cochée, critère final §90 satisfait.

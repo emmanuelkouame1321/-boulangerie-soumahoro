@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\LossOrigin;
 use App\Enums\LossReason;
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\LossRecordFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,7 +37,7 @@ use Illuminate\Support\Carbon;
 class LossRecord extends Model
 {
     /** @use HasFactory<LossRecordFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

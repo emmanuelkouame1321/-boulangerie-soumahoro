@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\StockMovementType;
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\StockMovementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,7 +40,7 @@ use Illuminate\Support\Carbon;
 class StockMovement extends Model
 {
     /** @use HasFactory<StockMovementFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BakeryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DayClosingController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LossController;
+use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductionOrderController;
@@ -80,10 +83,6 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/inventory/movements', [StockMovementController::class, 'index'])
         ->name('inventory.movements')
-        ->middleware('permission:inventory.view');
-
-    Route::get('/inventory/movements/export', [StockMovementController::class, 'export'])
-        ->name('inventory.movements.export')
         ->middleware('permission:inventory.view');
 
     Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])
@@ -373,14 +372,22 @@ Route::middleware('auth')->group(function (): void {
         ->name('reports.index')
         ->middleware('permission:report.view');
 
-    Route::get('/reports/{kind}/export', [ReportsController::class, 'export'])
-        ->name('reports.export')
-        ->middleware('permission:report.export');
+    Route::get('/reports/{kind}/print', [ReportsController::class, 'print'])
+        ->name('reports.print')
+        ->whereIn('kind', ['sales', 'stock', 'production', 'losses', 'purchases', 'wholesalers', 'expenses', 'payroll'])
+        ->middleware('permission:report.view');
 
     Route::get('/reports/{kind}', [ReportsController::class, 'show'])
         ->name('reports.show')
         ->whereIn('kind', ['sales', 'stock', 'production', 'losses', 'purchases', 'wholesalers', 'expenses', 'payroll'])
         ->middleware('permission:report.view');
+
+    // Exports en arrière-plan (cahier §48, file d'attente §53-13).
+    Route::get('/exports', [ExportController::class, 'index'])->name('exports.index');
+    Route::post('/exports', [ExportController::class, 'store'])->name('exports.store');
+    Route::get('/exports/{export}/download', [ExportController::class, 'download'])
+        ->name('exports.download')
+        ->whereNumber('export');
     Route::get('/notifications', [StockAlertController::class, 'index'])
         ->name('notifications.index')
         ->middleware('permission:alert.view');
@@ -392,7 +399,15 @@ Route::middleware('auth')->group(function (): void {
 
     // Administration
     Route::view('/settings', 'settings.index')->name('settings.index')->middleware('permission:settings.view');
-    Route::view('/settings/audit', 'settings.audit.index')->name('settings.audit.index')->middleware('permission:audit.view');
+    Route::get('/settings/audit', [AuditLogController::class, 'index'])->name('settings.audit.index')->middleware('permission:audit.view');
+
+    // Préférences de notification (cahier §22).
+    Route::get('/settings/notifications', [NotificationPreferenceController::class, 'index'])
+        ->name('settings.notifications.index')
+        ->middleware('permission:settings.view');
+    Route::post('/settings/notifications', [NotificationPreferenceController::class, 'update'])
+        ->name('settings.notifications.update')
+        ->middleware('permission:settings.view');
 
     // Utilisateurs, rôles et permissions (cahier §20.4).
     Route::resource('settings/users', UserController::class)

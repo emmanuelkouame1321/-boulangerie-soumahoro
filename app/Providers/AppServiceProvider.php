@@ -6,12 +6,16 @@ namespace App\Providers;
 
 use App\Domain\Sites\BakeryContext;
 use App\Enums\Role;
+use App\Enums\StockAlertStatus;
+use App\Models\StockAlert;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -45,5 +49,22 @@ class AppServiceProvider extends ServiceProvider
         // même adresse IP. La limitation par compte est dans LoginRequest.
         RateLimiter::for('login', static fn (Request $request) => Limit::perMinute(20)
             ->by($request->ip()));
+
+        // Cahier §22 (« notification tableau de bord ») : compteur
+        // d'alertes ouvertes du site courant, affiché sur la cloche de la
+        // topbar. Le scope par site isole automatiquement les comptages ;
+        // sans permission `alert.view`, le compteur reste à zéro.
+        View::composer('components.layout.topbar', static function (ViewContract $view): void {
+            $user = auth()->user();
+            $count = 0;
+
+            if ($user !== null && $user->can('alert.view')) {
+                $count = StockAlert::query()
+                    ->where('status', StockAlertStatus::Open->value)
+                    ->count();
+            }
+
+            $view->with('openAlertCount', $count);
+        });
     }
 }

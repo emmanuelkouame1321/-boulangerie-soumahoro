@@ -13,3 +13,7 @@ Artisan::command('inspire', function () {
 // heures ; les autres contrôles (commandes en retard, clôtures,
 // statistiques) s'ajouteront au fil des phases.
 Schedule::command('boulangerie:expiry-check')->hourlyAt(5);
+
+// Cahier §48 / ADR-021 — les exports restent téléchargeables 7 jours :
+// purge quotidienne des fichiers expirés et des échecs anciens.
+Schedule::command('boulangerie:exports-prune')->dailyAt('03:15');

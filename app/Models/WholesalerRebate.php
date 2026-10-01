@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\RebateBasis;
 use App\Enums\RebateStatus;
+use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\BelongsToBakery;
 use Database\Factories\WholesalerRebateFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,7 +42,7 @@ use Illuminate\Support\Carbon;
 class WholesalerRebate extends Model
 {
     /** @use HasFactory<WholesalerRebateFactory> */
-    use BelongsToBakery, HasFactory;
+    use AuditsChanges, BelongsToBakery, HasFactory;
 
     /**
      * @var list<string>

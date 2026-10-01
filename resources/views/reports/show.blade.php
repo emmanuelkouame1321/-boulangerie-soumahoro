@@ -12,10 +12,26 @@
     >
         <x-slot:actions>
             @if ($canExport)
-                <x-ui.button variant="secondary" icon="download" :href="route('reports.export', array_merge(['kind' => $kind, 'format' => 'csv'], $exportQuery))">CSV</x-ui.button>
-                <x-ui.button variant="secondary" icon="download" :href="route('reports.export', array_merge(['kind' => $kind, 'format' => 'xls'], $exportQuery))">Excel</x-ui.button>
-                <x-ui.button variant="secondary" icon="printer" :href="route('reports.export', array_merge(['kind' => $kind, 'format' => 'pdf'], $exportQuery))" target="_blank">Imprimer / PDF</x-ui.button>
+                <form method="POST" action="{{ route('exports.store') }}">
+                    @csrf
+                    <input type="hidden" name="kind" value="report:{{ $kind }}" />
+                    <input type="hidden" name="format" value="csv" />
+                    <input type="hidden" name="filters[from]" value="{{ $from }}" />
+                    <input type="hidden" name="filters[to]" value="{{ $to }}" />
+                    <input type="hidden" name="filters[site]" value="{{ $site }}" />
+                    <x-ui.button type="submit" variant="secondary" icon="download">CSV</x-ui.button>
+                </form>
+                <form method="POST" action="{{ route('exports.store') }}">
+                    @csrf
+                    <input type="hidden" name="kind" value="report:{{ $kind }}" />
+                    <input type="hidden" name="format" value="xls" />
+                    <input type="hidden" name="filters[from]" value="{{ $from }}" />
+                    <input type="hidden" name="filters[to]" value="{{ $to }}" />
+                    <input type="hidden" name="filters[site]" value="{{ $site }}" />
+                    <x-ui.button type="submit" variant="secondary" icon="download">Excel</x-ui.button>
+                </form>
             @endif
+            <x-ui.button variant="secondary" icon="printer" :href="route('reports.print', array_merge(['kind' => $kind], $exportQuery))" target="_blank">Imprimer / PDF</x-ui.button>
             <x-ui.button variant="primary" :href="route('reports.index', $exportQuery)">Tous les rapports</x-ui.button>
         </x-slot:actions>
     </x-layout.page-header>

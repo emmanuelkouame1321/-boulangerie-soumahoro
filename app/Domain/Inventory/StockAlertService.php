@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Inventory;
 
+use App\Domain\Notifications\AlertNotifier;
 use App\Enums\StockAlertMode;
 use App\Enums\StockAlertStatus;
 use App\Enums\StockAlertType;
@@ -28,7 +29,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class StockAlertService
 {
-    public function __construct(private readonly StockService $stocks) {}
+    public function __construct(
+        private readonly StockService $stocks,
+        private readonly AlertNotifier $notifier,
+    ) {}
 
     public function recalculate(Product $product, Bakery $bakery): void
     {
@@ -46,7 +50,7 @@ final class StockAlertService
             );
 
             if ($open === null) {
-                StockAlert::create([
+                $created = StockAlert::create([
                     'bakery_id' => $bakery->getKey(),
                     'product_id' => $product->getKey(),
                     'stock_alert_rule_id' => $alert['rule']?->getKey(),
@@ -57,6 +61,8 @@ final class StockAlertService
                     'message' => $alert['message'],
                     'triggered_at' => now(),
                 ]);
+
+                $this->notifier->alertOpened($created);
 
                 continue;
             }
@@ -119,7 +125,7 @@ final class StockAlertService
             return $open;
         }
 
-        return StockAlert::create([
+        $alert = StockAlert::create([
             'bakery_id' => $bakery->getKey(),
             'product_id' => $product->getKey(),
             'type' => $type->value,
@@ -129,6 +135,10 @@ final class StockAlertService
             'message' => $message,
             'triggered_at' => now(),
         ]);
+
+        $this->notifier->alertOpened($alert);
+
+        return $alert;
     }
 
     /**
