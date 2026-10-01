@@ -31,7 +31,7 @@
                     type="search"
                     value="{{ $search }}"
                     placeholder="Rechercher par nom, code ou adresse…"
-                    class="block w-full rounded-lg border border-line bg-surface py-2.5 pr-3 pl-9 text-sm text-ink
+                    class="block w-full rounded-control border border-line bg-surface py-2.5 pr-3 pl-9 text-sm text-ink
                         placeholder:text-soft focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none"
                 >
             </div>

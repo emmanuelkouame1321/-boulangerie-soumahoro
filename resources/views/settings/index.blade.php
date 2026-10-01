@@ -32,7 +32,7 @@
             <div class="grid gap-3">
                 @foreach (['FEFO pour produits périssables', 'Bloquer production si matière insuffisante', 'Créer automatiquement les lots', 'Alerter sur écart de rendement'] as $option)
                     <label class="flex items-center gap-2.5 text-[13px]">
-                        <input type="checkbox" checked class="size-4 rounded border-line-strong text-brand-600 focus:ring-2 focus:ring-brand-100">
+                        <input type="checkbox" checked class="size-4 rounded-control border-line-strong text-brand-600 focus:ring-2 focus:ring-brand-100">
                         {{ $option }}
                     </label>
                 @endforeach
@@ -44,7 +44,7 @@
                 @foreach (['Stock critique', 'Produit proche péremption', 'Commande en retard', 'Production insuffisante'] as $option)
                     <label class="flex items-center justify-between gap-3 text-[13px]">
                         {{ $option }}
-                        <input type="checkbox" checked class="size-4 rounded border-line-strong text-brand-600 focus:ring-2 focus:ring-brand-100">
+                        <input type="checkbox" checked class="size-4 rounded-control border-line-strong text-brand-600 focus:ring-2 focus:ring-brand-100">
                     </label>
                 @endforeach
             </div>

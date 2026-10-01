@@ -27,7 +27,7 @@
     >
         {{-- Identité — bandeau vert de la charte --}}
         <div class="mt-1.5 flex h-16 shrink-0 items-center gap-3 bg-brand-700 px-4 text-white">
-            <div class="grid size-9 shrink-0 place-items-center rounded-[9px] bg-white text-sm font-extrabold text-brand-700">
+            <div class="grid size-9 shrink-0 place-items-center rounded-card bg-surface text-sm font-extrabold text-brand-700">
                 B
             </div>
             <div class="min-w-0">

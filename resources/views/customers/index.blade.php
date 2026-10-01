@@ -2,52 +2,78 @@
     use App\Support\Format;
 @endphp
 
-<x-layouts.app title="Clients particuliers">
-    <x-layout.page-header eyebrow="Clientèle" title="Clients particuliers">
+<x-layouts.app title="Clients">
+    <x-layout.page-header
+        eyebrow="Commercial"
+        title="Clients"
+        description="Les clients du site : particuliers identifiés et acheteurs réguliers."
+    >
         <x-slot:actions>
-            <x-ui.button variant="primary" icon="plus" wire:click="$dispatch('open-modal', 'customer-create')">Ajouter un client</x-ui.button>
+            @if ($canManage)
+                <x-ui.button variant="primary" icon="plus" :href="route('customers.create')">Nouveau client</x-ui.button>
+            @endif
         </x-slot:actions>
     </x-layout.page-header>
 
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+    @endif
+
     <x-ui.card flush>
-        <div class="flex flex-wrap gap-2 p-4">
-            <x-ui.search-input placeholder="Rechercher un client…" />
-            <x-ui.button variant="secondary">Tous les sites</x-ui.button>
-            <x-ui.button variant="secondary">Statut</x-ui.button>
-            <x-ui.button variant="secondary" icon="download" onclick="window.toast('Export en préparation')">Exporter</x-ui.button>
-        </div>
+        <form method="GET" action="{{ route('customers.index') }}" class="flex flex-wrap items-end gap-3 p-4">
+            <div class="min-w-56 flex-1">
+                <x-ui.search-input name="search" :value="$search" placeholder="Nom, téléphone, email…" />
+            </div>
+            <x-ui.button type="submit" variant="secondary">Rechercher</x-ui.button>
+            @if ($search !== '')
+                <x-ui.button variant="ghost" :href="route('customers.index')">Effacer</x-ui.button>
+            @endif
+        </form>
 
-        <x-ui.data-table :headers="['Client', 'Téléphone', ['label' => 'Ventes', 'align' => 'right'], ['label' => 'CA cumulé', 'align' => 'right'], 'Action']">
-            @foreach ([
-                ['CLI-00031', 'Client comptoir', '07 00 00 00 00', 42, 125_000],
-                ['CLI-00030', 'Nadia Kouamé', '05 00 00 00 00', 18, 86_000],
-                ['CLI-00029', 'Moussa Traoré', '01 00 00 00 00', 12, 54_500],
-            ] as [$ref, $name, $phone, $sales, $revenue])
-                <tr>
-                    <td>
-                        <span class="block font-bold text-ink">{{ $name }}</span>
-                        <span class="block text-[11px] text-soft">{{ $ref }}</span>
-                    </td>
-                    <td>{{ $phone }}</td>
-                    <td class="numeric text-right">{{ $sales }}</td>
-                    <td class="numeric text-right font-bold">{{ Format::money($revenue) }}</td>
-                    <td><x-ui.button variant="secondary" size="sm" onclick="window.toast('Fiche {{ $name }} ouverte')">Ouvrir</x-ui.button></td>
-                </tr>
-            @endforeach
-        </x-ui.data-table>
+        @if ($customers->isEmpty())
+            <div class="p-4">
+                <x-ui.empty-state
+                    icon="users"
+                    title="{{ $search !== '' ? 'Aucun résultat' : 'Aucun client' }}"
+                    description="Ajoutez un client pour suivre ses achats et son historique."
+                >
+                    @if ($canManage)
+                        <x-slot:action>
+                            <x-ui.button variant="primary" icon="plus" :href="route('customers.create')">Nouveau client</x-ui.button>
+                        </x-slot:action>
+                    @endif
+                </x-ui.empty-state>
+            </div>
+        @else
+            <x-ui.data-table :headers="['Client', 'Téléphone', 'Site', ['label' => 'Ventes', 'align' => 'right'], 'Statut', '']">
+                @foreach ($customers as $customer)
+                    <tr>
+                        <td>
+                            <span class="block font-bold text-ink">{{ $customer->name }}</span>
+                            <span class="block text-[11px] text-soft">{{ $customer->email ?? '—' }}</span>
+                        </td>
+                        <td>{{ $customer->phone ?? '—' }}</td>
+                        <td>{{ $customer->bakery?->name ?? '—' }}</td>
+                        <td class="numeric text-right">{{ Format::number($customer->sales_count) }}</td>
+                        <td>
+                            <x-ui.status-badge
+                                :tone="$customer->is_active ? 'success' : 'neutral'"
+                                :label="$customer->is_active ? 'Actif' : 'Inactif'"
+                                :icon="false"
+                            />
+                        </td>
+                        <td>
+                            @if ($canManage)
+                                <x-ui.button variant="secondary" size="sm" :href="route('customers.edit', $customer)">Modifier</x-ui.button>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </x-ui.data-table>
+
+            <div class="p-4">
+                {{ $customers->links() }}
+            </div>
+        @endif
     </x-ui.card>
-
-    <x-ui.modal name="customer-create" title="Ajouter un client" subtitle="Formulaire prototype">
-        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <x-ui.form-field name="name" label="Nom / référence" placeholder="Saisir…" />
-            <x-ui.form-field name="phone" label="Téléphone" inputmode="tel" placeholder="07 00 00 00 00" />
-            <x-ui.select name="site" :options="['Boulangerie Centre' => 'Boulangerie Centre', 'Boulangerie Cocody' => 'Boulangerie Cocody']" label="Site" />
-            <x-ui.form-field name="comment" label="Commentaire" placeholder="Optionnel" />
-        </div>
-
-        <x-slot:footer>
-            <x-ui.button variant="secondary" @click="open = false">Annuler</x-ui.button>
-            <x-ui.button variant="primary" @click="open = false; window.toast('Client enregistré')">Enregistrer</x-ui.button>
-        </x-slot:footer>
-    </x-ui.modal>
 </x-layouts.app>

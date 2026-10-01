@@ -34,7 +34,7 @@
                 type="checkbox"
                 value="1"
                 @checked(old('remember'))
-                class="size-4 rounded border-line text-brand-600 focus:ring-2 focus:ring-brand-600/25"
+                class="size-4 rounded-control border-line text-brand-600 focus:ring-2 focus:ring-brand-600/25"
             >
             Se souvenir de moi
         </label>

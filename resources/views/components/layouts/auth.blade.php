@@ -21,7 +21,7 @@
     <main class="flex min-h-screen items-center justify-center px-4 py-10">
         <div class="w-full max-w-md">
             <div class="mb-6 text-center">
-                <div class="mx-auto grid size-12 place-items-center rounded-[10px] bg-brand-700 text-base font-extrabold text-white">
+                <div class="mx-auto grid size-12 place-items-center rounded-card bg-brand-700 text-base font-extrabold text-white">
                     B
                 </div>
 

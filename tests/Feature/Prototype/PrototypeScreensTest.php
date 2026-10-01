@@ -6,6 +6,7 @@ namespace Tests\Feature\Prototype;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Support\Navigation;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -46,6 +47,12 @@ class PrototypeScreensTest extends TestCase
             'settings.roles.index',
             'settings.audit.index',
             'bakeries.index',
+            'units.index',
+            'units.create',
+            'products.index',
+            'products.create',
+            'settings.users.create',
+            'settings.roles.create',
         ];
     }
 
@@ -78,10 +85,42 @@ class PrototypeScreensTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_sales_manager_cannot_reach_payroll_by_a_direct_request(): void
+    {
+        $this->withoutVite();
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create();
+        $user->assignRole(Role::SalesManager->value);
+
+        $this->actingAs($user)
+            ->get('/payroll')
+            ->assertForbidden();
+
+        // …et le menu ne propose pas non plus cette entrée.
+        $this->assertNotContains('Paie', $this->labels($user));
+    }
+
     public function test_screens_require_authentication(): void
     {
         foreach ($this->screenRouteNames() as $name) {
             $this->get(route($name))->assertRedirect('/login');
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function labels(User $user): array
+    {
+        $labels = [];
+
+        foreach (Navigation::forUser($user) as $group) {
+            foreach ($group['items'] as $item) {
+                $labels[] = $item['label'];
+            }
+        }
+
+        return $labels;
     }
 }

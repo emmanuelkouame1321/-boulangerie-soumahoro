@@ -1,48 +1,71 @@
 <x-layouts.app title="Utilisateurs">
-    <x-layout.page-header eyebrow="Administration" title="Utilisateurs">
+    <x-layout.page-header
+        eyebrow="Administration"
+        title="Utilisateurs"
+        description="Comptes, rôles et affectation multi-sites."
+    >
         <x-slot:actions>
-            <x-ui.button variant="primary" icon="plus" wire:click="$dispatch('open-modal', 'user-create')">Nouvel utilisateur</x-ui.button>
+            <x-ui.button variant="primary" icon="plus" :href="route('settings.users.create')">Nouvel utilisateur</x-ui.button>
         </x-slot:actions>
     </x-layout.page-header>
 
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+    @endif
+
     <x-ui.card flush>
-        <div class="flex flex-wrap gap-2 p-4">
-            <x-ui.search-input placeholder="Rechercher un utilisateur…" />
-            <x-ui.button variant="secondary">Tous les sites</x-ui.button>
-            <x-ui.button variant="secondary">Rôle</x-ui.button>
-        </div>
+        <form method="GET" action="{{ route('settings.users.index') }}" class="flex flex-wrap items-end gap-3 p-4">
+            <div class="min-w-56 flex-1">
+                <x-ui.search-input name="search" :value="$search" placeholder="Nom ou email…" />
+            </div>
+            <x-ui.button type="submit" variant="secondary">Rechercher</x-ui.button>
+            @if ($search !== '')
+                <x-ui.button variant="ghost" :href="route('settings.users.index')">Effacer</x-ui.button>
+            @endif
+        </form>
 
-        <x-ui.data-table :headers="['Utilisateur', 'Rôle', 'Site', 'Statut', 'Action']">
-            @foreach ([
-                ['Awa Kouassi', 'Caissière', 'Centre', 'Actif'],
-                ['Kouassi Jean', 'Responsable production', 'Centre', 'Actif'],
-                ['Admin', 'Super-Admin', 'Tous les sites', 'Actif'],
-            ] as [$name, $role, $site, $status])
-                <tr>
-                    <td>
-                        <span class="block font-bold text-ink">{{ $name }}</span>
-                        <span class="block text-[11px] text-soft">{{ \Illuminate\Support\Str::slug($name).'@soumahoro.test' }}</span>
-                    </td>
-                    <td>{{ $role }}</td>
-                    <td>{{ $site }}</td>
-                    <td><x-ui.status-badge tone="success" :label="$status" :icon="false" /></td>
-                    <td><x-ui.button variant="secondary" size="sm" onclick="window.toast('Compte de {{ $name }}')">Ouvrir</x-ui.button></td>
-                </tr>
-            @endforeach
-        </x-ui.data-table>
+        @if ($users->isEmpty())
+            <div class="p-4">
+                <x-ui.empty-state icon="users-round" title="Aucun utilisateur" description="Créez le premier compte." />
+            </div>
+        @else
+            <x-ui.data-table :headers="['Utilisateur', 'Rôles', 'Sites', '']">
+                @foreach ($users as $user)
+                    <tr>
+                        <td>
+                            <span class="block font-bold text-ink">{{ $user->name }}</span>
+                            <span class="block text-[11px] text-soft">{{ $user->email }}</span>
+                        </td>
+                        <td>
+                            <div class="flex flex-wrap gap-1.5">
+                                @forelse ($user->roles as $role)
+                                    <x-ui.status-badge tone="info" :label="$role->name" :icon="false" />
+                                @empty
+                                    <span class="text-[11px] text-soft">Aucun rôle</span>
+                                @endforelse
+                            </div>
+                        </td>
+                        <td>
+                            <div class="flex flex-wrap gap-1.5">
+                                @forelse ($user->bakeries as $bakery)
+                                    <x-ui.status-badge
+                                        :tone="$bakery->pivot->is_default ? 'success' : 'neutral'"
+                                        :label="$bakery->code"
+                                        :icon="false"
+                                    />
+                                @empty
+                                    <span class="text-[11px] text-soft">Aucun site</span>
+                                @endforelse
+                            </div>
+                        </td>
+                        <td>
+                            <x-ui.button variant="secondary" size="sm" :href="route('settings.users.edit', $user)">Modifier</x-ui.button>
+                        </td>
+                    </tr>
+                @endforeach
+            </x-ui.data-table>
+
+            <div class="p-4">{{ $users->links() }}</div>
+        @endif
     </x-ui.card>
-
-    <x-ui.modal name="user-create" title="Nouvel utilisateur" subtitle="Formulaire prototype">
-        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <x-ui.form-field name="name" label="Nom complet" />
-            <x-ui.form-field name="email" label="Adresse email" type="email" inputmode="email" />
-            <x-ui.select name="role" :options="collect(config('boulangerie.roles'))->mapWithKeys(fn ($role, $key) => [$key => $role['label']])->all()" label="Rôle" />
-            <x-ui.select name="site" :options="['Boulangerie Centre' => 'Boulangerie Centre', 'Boulangerie Cocody' => 'Boulangerie Cocody']" label="Site principal" />
-        </div>
-
-        <x-slot:footer>
-            <x-ui.button variant="secondary" @click="open = false">Annuler</x-ui.button>
-            <x-ui.button variant="primary" @click="open = false; window.toast('Utilisateur créé')">Créer</x-ui.button>
-        </x-slot:footer>
-    </x-ui.modal>
 </x-layouts.app>

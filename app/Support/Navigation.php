@@ -67,11 +67,11 @@ final class Navigation
             return true;
         }
 
-        // Tant que l'authentification n'est pas en place (Phase 1 du planning),
-        // le socle affiche la structure complète pour permettre la validation
-        // de la mise en page. Les routes restent à protéger en Phase 1.
+        // Fail-closed : sans utilisateur authentifié, aucune entrée
+        // permissionnée n'est exposée. Le masquage n'est qu'un confort
+        // d'affichage — la route reste protégée côté serveur.
         if ($user === null) {
-            return true;
+            return false;
         }
 
         if ($user instanceof Authorizable) {

@@ -66,17 +66,17 @@
                 @forelse ($products as $product)
                     <button
                         type="button"
-                        wire:click="addToCart('{{ $product['sku'] }}')"
-                        wire:key="product-{{ $product['sku'] }}"
+                        wire:click="addToCart({{ $product['id'] }})"
+                        wire:key="product-{{ $product['id'] }}"
                         class="flex flex-col items-center rounded-card px-1 py-2 text-center transition hover:bg-subtle"
                     >
                         <span class="mb-1.5 line-clamp-2 min-h-7 text-[11px] leading-tight font-medium text-muted uppercase">
                             {{ $product['name'] }}
                         </span>
 
-                        <span class="relative grid size-[72px] place-items-center rounded-full bg-gradient-to-br from-[#f1d08f] to-[#c8902e] text-3xl shadow-sm">
+                        <span class="relative grid size-[72px] place-items-center rounded-full bg-gradient-to-br from-crust-100 to-crust-500 text-3xl shadow-card">
                             {{ $product['emoji'] }}
-                            <span class="numeric absolute -right-1 -bottom-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-sm">
+                            <span class="numeric absolute -right-1 -bottom-1 rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-bold text-ink shadow-card">
                                 {{ Format::money($product['price'], false) }}
                             </span>
                         </span>
@@ -117,10 +117,10 @@
                         </div>
 
                         <div class="flex items-center gap-1.5 px-3 pb-2.5">
-                            <button type="button" wire:click="changeQuantity('{{ $line['sku'] }}', -1)" class="grid size-8 place-items-center rounded-control border border-line-strong font-extrabold hover:bg-subtle">−</button>
+                            <button type="button" wire:click="changeQuantity({{ $line['product_id'] }}, -1)" class="grid size-8 place-items-center rounded-control border border-line-strong font-extrabold hover:bg-subtle">−</button>
                             <span class="numeric w-8 text-center text-sm font-bold">{{ $line['qty'] }}</span>
-                            <button type="button" wire:click="changeQuantity('{{ $line['sku'] }}', 1)" class="grid size-8 place-items-center rounded-control border border-line-strong font-extrabold hover:bg-subtle">+</button>
-                            <button type="button" wire:click="removeItem('{{ $line['sku'] }}')" class="ml-auto rounded-control border border-line-strong p-2 hover:bg-subtle" aria-label="Retirer">
+                            <button type="button" wire:click="changeQuantity({{ $line['product_id'] }}, 1)" class="grid size-8 place-items-center rounded-control border border-line-strong font-extrabold hover:bg-subtle">+</button>
+                            <button type="button" wire:click="removeItem({{ $line['product_id'] }})" class="ml-auto rounded-control border border-line-strong p-2 hover:bg-subtle" aria-label="Retirer">
                                 <x-ui.icon name="trash-2" :size="15" />
                             </button>
                         </div>

@@ -23,6 +23,9 @@ trait BelongsToBakery
         static::addGlobalScope(new BakeryScope);
     }
 
+    /**
+     * @return BelongsTo<Bakery, $this>
+     */
     public function bakery(): BelongsTo
     {
         return $this->belongsTo(Bakery::class);
@@ -37,6 +40,9 @@ trait BelongsToBakery
      */
     public static function withoutBakeryScope(): Builder
     {
-        return static::withoutGlobalScope(BakeryScope::class);
+        /** @var Builder<static> $builder */
+        $builder = static::withoutGlobalScope(BakeryScope::class);
+
+        return $builder;
     }
 }

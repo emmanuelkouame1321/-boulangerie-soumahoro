@@ -4,7 +4,7 @@
 > la traiter en respectant `AGENTS.md`, la cocher, mettre à jour l'en-tête
 > de statut, puis passer à la suivante. Ne jamais sauter une phase.
 
-**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 en cours (1.1 ✅, 1.2 ✅, 1.3 partiel)**
+**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅**
 
 Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
@@ -93,9 +93,9 @@ permission vérifiée côté serveur ; le Super-Admin accède à tout.
       jamais fait confiance
 - [x] CRUD boulangeries réservé au Super-Admin (`BakeryPolicy`)
 - [x] Tests : contexte de site, bascule autorisée/refusée, permissions
-- [~] Tests d'isolation de données entre sites — le contexte et le scope
-      sont testés ; l'isolation de bout en bout le sera en Phase 2, dès
-      qu'un modèle métier portera un `bakery_id`
+- [x] Tests d'isolation de données entre sites — le contexte et le scope
+      sont testés ; l'isolation de bout en bout est vérifiée depuis la
+      Phase 2 (`StockMovementServiceTest::test_the_stock_is_isolated_per_site`)
 
 **Critère atteint :** le contexte de site est résolu à chaque requête, un
 responsable est cantonné à son site, seul le Super-Admin accède à la vue
@@ -108,129 +108,163 @@ consolidée.
 - [x] Migration `unit_conversions` (facteur `decimal(18,8)`)
 - [x] Seeders idempotents (`UnitsSeeder`), conversions par défaut
       (1 sac = 50 kg, 1 kg = 1 000 g, 1 L = 1 000 ml)
-- [ ] Service de conversion d'unités + tests (`1 sac = 50 kg`)
-- [ ] Écran d'administration des unités et conversions
+- [x] Service de conversion d'unités + tests (`1 sac = 50 kg`)
+      `App\Domain\Measurement\UnitConversionService` : conversion
+      directe, inverse et chaînée (parcours de graphe borné), en
+      décimal exact via BCMath
+- [x] Écran d'administration des unités et conversions
+      (`/settings/units` — CRUD unités + gestion des conversions)
 
-**Critère :** `1 sac de farine` se convertit en `50 kg` dans le calcul.
+**Critère :** `1 sac de farine` se convertit en `50 kg` dans le calcul. ✅
 
-### 1.4 Produits et matières premières
+### 1.4 Produits et matières premières ✅
 
-- [ ] Migration `product_categories`
-- [ ] Migration `products` (SKU, type, unité principale, prix d'achat,
+- [x] Migration `product_categories`
+- [x] Migration `products` (SKU, type, unité principale, prix d'achat,
       prix de vente, prix grossiste, seuil d'alerte, mode d'alerte, durée
       limite de vente, actif, description)
-- [ ] Migration `product_prices`, `product_suppliers`
-- [ ] Modèle `Product` avec casts et enum `ProductType`
-- [ ] Policy `ProductPolicy`
-- [ ] Écrans : liste (recherche, filtres, tri, pagination), création,
-      édition, fiche produit (Design System §24, §62)
-- [ ] Composants `DataTable`, `TextInput`, `Select`, `FormField`,
-      `NumberInput`, `Pagination` (Design System §59)
-- [ ] Tests : politique d'accès, création, seuils
+- [x] Migration `product_prices` (historique des prix)
+- [~] Migration `product_suppliers` — reportée en **Phase 3** : la table
+      `suppliers` n'existe pas encore et en dépend
+- [x] Modèle `Product` avec casts et enum `ProductType`
+- [x] `ProductCategory`, `ProductPrice` + factories + seeder démo
+- [x] Policy `ProductPolicy` (jamais de suppression physique)
+- [x] Écrans : liste (recherche, filtres, pagination), création, édition
+- [~] Fiche produit en lecture seule — reportée (la liste suffit au MVP)
+- [x] Composants `data-table`, `search-input`, `select`, `form-field`,
+      `pagination` (formulaire en `components/products/form`)
+- [x] Tests : politique d'accès, création, unicité du SKU
 
 **Critère :** le Super-Admin crée une matière première et un produit fini
-avec seuil et durée limite de vente, sans toucher au code.
+avec seuil et durée limite de vente, sans toucher au code. ✅
 
-### 1.5 Utilisateurs, rôles et permissions
+### 1.5 Utilisateurs, rôles et permissions ✅
 
-- [ ] Écran de gestion des utilisateurs (affectation multi-sites)
-- [ ] Écran de gestion des rôles et permissions (Design System §74)
-- [ ] `UserPolicy`, `RolePolicy`
-- [ ] Journal des changements de permission (prépare l'audit Phase 10)
-- [ ] Menu latéral réellement filtré par permission (retirer le mode
-      dégradé de `App\Support\Navigation`)
-- [ ] Tests : un Responsable Vente ne peut pas atteindre une route
-      Paie même par requête HTTP directe
+- [x] Écran de gestion des utilisateurs (affectation multi-sites + site
+      par défaut, roles de spatie)
+- [x] Écran de gestion des rôles et permissions (catalogue groupé par
+      module, création et modification de rôle)
+- [x] `UserPolicy`, `RolePolicy`
+- [x] Le rôle Super-Admin n'est pas modifiable (wildcard porté par
+      `Gate::before`)
+- [~] Journal des changements de permission — reporté en **Phase 10**
+      (table `audit_logs`)
+- [x] Menu latéral réellement filtré par permission : le mode dégradé
+      de `App\Support\Navigation` a été retiré (fail-closed)
+- [x] Tests : un rôle sans permission est renvoyé en 403 même par
+      requête HTTP directe (paie, utilisateurs, rôles, produits, unités)
 
 **Critère :** aucune permission ne peut être contournée via l'interface
-ou une requête directe.
+ou une requête directe. ✅
 
-**Critère de sortie de Phase 1 :** `composer ci` vert ; les 3 rôles
-voient 3 menus différents ; les données sont isolées par site.
+**Critère de sortie de Phase 1 :** `composer ci` vert ✅ ; les rôles
+voient des menus différents ✅ ; les données sont isolées par site
+(contexte + scope testés).
 
 ---
 
-## Phase 2 — Stocks (MVP 5)
+## Phase 2 — Stocks (MVP 5) ✅
 
-- [ ] Migration `stocks` (produit, site, quantité, réservé)
-- [ ] Migration `stock_movements` (grand livre complet, jamais supprimé)
-- [ ] Migration `stock_alert_rules` et `stock_alerts`
-- [ ] Migration `stock_reservations`
-- [ ] `App\Domain\Inventory\StockMovementService` : unique point d'écriture
+- [x] Migration `stocks` (produit, site, quantité, réservé)
+- [x] Migration `stock_movements` (grand livre complet, jamais supprimé —
+      clé étrangère en `restrictOnDelete`, `quantity_after`, `idempotency_key`
+      unique, document source, motif, référence)
+- [x] Migration `stock_alert_rules` et `stock_alerts`
+- [x] Migration `stock_reservations`
+- [x] `App\Domain\Inventory\StockMovementService` : unique point d'écriture
       du stock, transactionnel, idempotent, `lockForUpdate`
-- [ ] `App\Domain\Inventory\StockService` : stock disponible =
-      physique − réservé
-- [ ] Recalcul d'alerte à chaque mouvement (mode seuil + mode cumulé,
-      périodes configurables)
-- [ ] Écran Stocks : stock temps réel, seuils, statuts (Design System §23, §44)
-- [ ] Écran Mouvements : historique filtrable, paginé, exportable
-- [ ] Composants `StockStatus`, `StockMovementBadge`, `ExpiryIndicator`
-- [ ] Tests : aucun stock négatif ; deux mouvements concurrents sur le
-      même stock ne se perdent pas ; idempotence
+- [x] `App\Domain\Inventory\StockService` : stock disponible =
+      physique − réservé ; statut (seuil) et consommation cumulée
+- [x] `App\Domain\Inventory\StockAlertService` : recalcul à chaque
+      mouvement (mode seuil + mode cumulé, périodes configurables,
+      règle du site prioritaire sur la règle globale)
+- [x] `App\Domain\Inventory\StockReservationService` : réserver / libérer /
+      consommer (idempotent)
+- [x] Écran Stocks : stock temps réel, seuils, statuts, ajustement motivé
+      (Design System §23, §44)
+- [x] Écran Mouvements : historique filtrable, paginé (Design System §34) —
+      export différé en Phase 9
+- [x] Composants `StockStatus`, `StockMovementBadge`, `ExpiryIndicator`
+      (dossier `components/business/`)
+- [x] Tests : aucun stock négatif ; deux mouvements concurrents sur le
+      même stock ne se perdent pas ; idempotence ; isolation par site de
+      bout en bout
 
 **Critère (cahier §50) :** chaque mouvement est historisé, le stock est
-toujours dérivable des mouvements.
+toujours dérivable des mouvements. ✅ Pour chaque mouvement, la variation
+`quantity_after` du grand livre reconstitue le stock physique ;
+`StockMovementService` est le seul écrivain de `stocks.quantity`.
 
 ---
 
-## Phase 3 — Achats (MVP 4 et 6)
+## Phase 3 — Achats (MVP 4 et 6) ✅
 
-- [ ] Migration `suppliers`, `product_suppliers`
-- [ ] Migration `purchase_orders`, `purchase_order_items` (statuts §11.1)
-- [ ] Migration `goods_receipts`, `goods_receipt_items`
-- [ ] `App\Domain\Purchasing\PurchaseOrderService`
-- [ ] `App\Domain\Purchasing\GoodsReceiptService` : validation
+- [x] Migration `suppliers`, `product_suppliers`
+- [x] Migration `purchase_orders`, `purchase_order_items` (statuts §11.1)
+- [x] Migration `goods_receipts`, `goods_receipt_items`
+- [x] `App\Domain\Purchasing\PurchaseOrderService`
+- [x] `App\Domain\Purchasing\GoodsReceiptService` : validation
       transactionnelle, entrée stock automatique, **non rejouable**
-- [ ] CRUD fournisseurs
-- [ ] Écrans commandes, réception, contrôle des écarts (Design System §47, §70)
-- [ ] Tests d'intégration : commande → réception → stock incrémenté
+- [x] CRUD fournisseurs
+- [x] Écrans commandes, réception, contrôle des écarts (Design System §47, §70)
+- [x] Tests d'intégration : commande → réception → stock incrémenté
       exactement une fois (double validation refusée)
 
-**Critère :** une réception validée augmente le stock automatiquement ;
-elle ne peut pas être validée deux fois.
+**Critère atteint :** une réception validée augmente le stock automatiquement ;
+elle ne peut pas être validée deux fois. ✅
 
 ---
 
-## Phase 4 — Production (MVP 7, 8, 9)
+## Phase 4 — Production (MVP 7, 8, 9) ✅
 
-- [ ] Migration `recipes`, `recipe_items` (ressource, quantité, unité, mode
+- [x] Migration `recipes`, `recipe_items` (ressource, quantité, unité, mode
       de déduction : quantité / coût cumulé / saisie / monétaire)
-- [ ] Migration `production_orders`, `production_order_items`
-- [ ] Migration `production_batches`, `production_outputs`
-- [ ] `App\Domain\Production\RecipeCalculator` (matières nécessaires,
+- [x] Migration `production_orders`, `production_order_items`
+- [x] Migration `production_batches`, `production_outputs`
+- [x] `App\Domain\Production\RecipeCalculator` (matières nécessaires,
       ressources cumulées fagot/glace/sel, rendement théorique)
-- [ ] `App\Domain\Production\ProductionService` : le bloc transactionnel
+- [x] `App\Domain\Production\ProductionService` : le bloc transactionnel
       du cahier §27 (vérifier → verrouiller → créer → consommer → lots →
       entrées → coûts → audit)
-- [ ] Calcul d'écart théorique/réel + motif obligatoire (cahier §7.4)
-- [ ] Création de lot + date limite de vente calculée
-- [ ] Assistant de production en 4 étapes (Design System §22, §43)
-- [ ] Composants `RecipePreview`, `ProductionSummary`, `QuantityInput`,
+- [x] Calcul d'écart théorique/réel + motif obligatoire (cahier §7.4)
+- [x] Création de lot + date limite de vente calculée
+- [x] Assistant de production en 4 étapes (Design System §22, §43)
+- [x] Composants `RecipePreview`, `ProductionSummary`, `QuantityInput`,
       `ProductSelector`, `Stepper`, `ConfirmDialog` (impact affiché)
-- [ ] Tests unitaires : recette, rendement, écart, coût
-- [ ] Tests : production insuffisante bloquée avec message clair
+- [x] Tests unitaires : recette, rendement, écart, coût
+- [x] Tests : production insuffisante bloquée avec message clair
 
-**Critère (cahier §50) :** recette configurable, matières calculées,
-rendement configurable, écarts calculés et motivés.
+**Critère atteint (cahier §50) :** recette configurable, matières calculées,
+rendement configurable, écarts calculés et motivés. ✅
 
 ---
 
-## Phase 5 — Ventes (MVP 10)
+## Phase 5 — Ventes (MVP 10) ✅
 
-- [ ] Migration `customers`, `sales`, `sale_items`, `payments`,
-      `payment_methods`
-- [ ] `App\Domain\Sales\SalesService` : déduction du stock produits finis,
-      idempotent
-- [ ] Ventes particulières (produit, quantité, prix, remise, mode de
-      paiement, caissier)
-- [ ] Ventes grossistes (`wholesaler_sales`) avec prix applicable
-- [ ] `App\Domain\Sales\DayClosingService` : clôture journalière
-      (produite / vendue / restante / perdue / retournée / écart)
-- [ ] Écrans Ventes, clôture du jour (Design System §67, §72)
-- [ ] Tests : une vente ne peut pas rendre le stock négatif
+- [x] Migration `customers`, `sales`, `sale_items`, `payments`,
+      `payment_methods`, `day_closings`, `day_closing_items`
+- [x] `App\Domain\Sales\SalesService` : déduction du stock produits finis,
+      idempotent (clé `sale:{saleId}:item:{itemId}`), référence
+      `SALE-{Ym}-{NNNN}`, gestion du rejeu par contrainte unique
+- [x] Ventes particulières (produit, quantité, prix par défaut
+      `sale_price`, remise, mode de paiement, caissier, `Payment`)
+- [x] Ventes grossistes : type `SaleType::Wholesale` sur la vente avec
+      prix applicable (`wholesale_price`) — voir ADR-016
+- [x] CRUD clients (`/customers`, permission `customer.manage`, soft deletes)
+- [x] `App\Domain\Sales\DayClosingService` : clôture journalière
+      (produite / vendue / restante / perdue / retournée / écart), unique
+      par site et par date (cahier §29)
+- [x] Seuil de justification d'écart de clôture configurable
+      (`day_closing.gap_justification_threshold`, cahier §15)
+- [x] Écrans Ventes, clôture du jour, clients (Design System §67, §72)
+- [x] Caisse (`/caisse`) câblée au `SalesService` — catalogue réel
+      `FinishedGood` + stock temps réel
+- [x] Tests : une vente ne peut pas rendre le stock négatif ; clôture
+      unique, écart calculé, observation obligatoire au-delà du seuil
 
 **Critère :** la clôture expose les écarts et déclenche une justification
-au-delà du seuil configuré.
+au-delà du seuil configuré. ✅ (`day_closing.gap_justification_threshold`,
+`DayClosingGapJustificationRequiredException`)
 
 ---
 

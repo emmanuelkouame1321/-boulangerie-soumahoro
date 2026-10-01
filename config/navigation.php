@@ -26,6 +26,7 @@ return [
             'items' => [
                 ['label' => 'Production', 'path' => 'production', 'icon' => 'factory', 'permission' => 'production.view'],
                 ['label' => 'Stocks', 'path' => 'inventory', 'icon' => 'boxes', 'permission' => 'inventory.view'],
+                ['label' => 'Produits', 'path' => 'products', 'icon' => 'package', 'permission' => 'product.view'],
                 ['label' => 'Achats', 'path' => 'purchasing/orders', 'icon' => 'shopping-cart', 'permission' => 'purchasing.view'],
                 ['label' => 'Ventes', 'path' => 'sales', 'icon' => 'receipt', 'permission' => 'sales.view'],
                 ['label' => 'Pertes', 'path' => 'losses', 'icon' => 'trash-2', 'permission' => 'loss.view'],
@@ -66,6 +67,7 @@ return [
                 ['label' => 'Utilisateurs', 'path' => 'settings/users', 'icon' => 'users-round', 'permission' => 'user.view'],
                 ['label' => 'Rôles & permissions', 'path' => 'settings/roles', 'icon' => 'shield-check', 'permission' => 'role.view'],
                 ['label' => 'Boulangeries', 'path' => 'settings/bakeries', 'icon' => 'building-2', 'permission' => 'bakery.view'],
+                ['label' => 'Unités', 'path' => 'settings/units', 'icon' => 'scale', 'permission' => 'unit.view'],
                 ['label' => 'Paramètres', 'path' => 'settings', 'icon' => 'settings', 'permission' => 'settings.view'],
             ],
         ],

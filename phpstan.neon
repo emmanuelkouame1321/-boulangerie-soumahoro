@@ -18,10 +18,3 @@ parameters:
 
     # Larastan : comprendre les helpers et les casts Eloquent.
     treatPhpDocTypesAsCertain: false
-
-    ignoreErrors:
-        # Trait d'isolation par site. Il est indispensable dès qu'un modèle
-        # porte un bakery_id, mais aucun modèle ne l'utilise encore : les
-        # premiers arrivent en Phase 2 (stocks, mouvements). Retirer cette
-        # exception dès que le trait est employé.
-        - '#Trait App\\Models\\Concerns\\BelongsToBakery is used zero times#'

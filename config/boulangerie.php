@@ -44,11 +44,16 @@ return [
                 'inventory.view',
                 'inventory.adjust',
                 'recipe.view',
+                'recipe.manage',
                 'production.view',
                 'production.create',
                 'production.validate',
                 'purchasing.view',
+                'purchasing.create',
+                'purchasing.manage',
                 'goods-receipt.create',
+                'supplier.view',
+                'supplier.manage',
                 'alert.view',
                 'alert.acknowledge',
             ],
@@ -61,6 +66,8 @@ return [
                 'sales.view',
                 'sales.create',
                 'sales.close-day',
+                'customer.view',
+                'customer.manage',
                 'wholesaler.view',
                 'wholesaler.manage',
                 'loss.view',
@@ -97,16 +104,21 @@ return [
         'inventory.view',
         'inventory.adjust',
         'recipe.view',
+        'recipe.manage',
         'production.view',
         'production.create',
         'production.validate',
         'purchasing.view',
+        'purchasing.create',
+        'purchasing.manage',
         'goods-receipt.create',
         'supplier.view',
+        'supplier.manage',
         'sales.view',
         'sales.create',
         'sales.close-day',
         'customer.view',
+        'customer.manage',
         'wholesaler.view',
         'wholesaler.manage',
         'rebate.view',
@@ -130,6 +142,12 @@ return [
         'bakery.view',
         'bakery.create',
         'bakery.update',
+        'unit.view',
+        'unit.manage',
+        'product.view',
+        'product.create',
+        'product.update',
+        'product.delete',
     ],
 
     /*
@@ -156,6 +174,32 @@ return [
         'require_idempotency_key' => true,
         // Cahier §27 : toute opération critique est transactionnelle.
         'lock_stock_rows' => true,
+        // Cahier §7.4 : un écart de rendement doit être motivé.
+        'require_production_gap_reason' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Production (cahier §5 à §8)
+    |--------------------------------------------------------------------------
+    */
+    'production' => [
+        // Durée limite de vente par défaut, si ni la recette ni le produit
+        // n'en déclarent (cahier §8.1).
+        'default_shelf_life_days' => 1,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clôture journalière (cahier §15)
+    |--------------------------------------------------------------------------
+    */
+    'day_closing' => [
+        // Écart absolu par produit, en unités principales, au-delà duquel
+        // une observation (note) devient obligatoire. Une différence
+        // importante « peut demander une justification » (cahier §15).
+        // Mettre 0 pour exiger une observation dès le premier écart.
+        'gap_justification_threshold' => 10,
     ],
 
     /*
@@ -188,6 +232,18 @@ return [
             'validated' => ['label' => 'Validée', 'tone' => 'success'],
             'cancelled' => ['label' => 'Annulée', 'tone' => 'danger'],
         ],
+        'receipt' => [
+            'draft' => ['label' => 'Brouillon', 'tone' => 'neutral'],
+            'validated' => ['label' => 'Validée', 'tone' => 'success'],
+            'cancelled' => ['label' => 'Annulée', 'tone' => 'danger'],
+        ],
+        'sale' => [
+            'validated' => ['label' => 'Validée', 'tone' => 'success'],
+            'cancelled' => ['label' => 'Annulée', 'tone' => 'danger'],
+        ],
+        'day_closing' => [
+            'validated' => ['label' => 'Clôturée', 'tone' => 'success'],
+        ],
         'bakery' => [
             'active' => ['label' => 'Active', 'tone' => 'success'],
             'inactive' => ['label' => 'Inactive', 'tone' => 'neutral'],
@@ -205,6 +261,31 @@ return [
     | Grand livre de stock (cahier §3.2)
     |--------------------------------------------------------------------------
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Modes de déduction des ressources d'une recette (cahier §5.3)
+    |--------------------------------------------------------------------------
+    */
+    'recipe_deduction_modes' => [
+        'quantity' => 'Déduction de stock',
+        'monetary' => 'Consommation monétaire',
+        'cumulated' => 'Consommation cumulée',
+        'manual' => 'Quantité réelle saisie',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Motifs d'écart de production (cahier §7.4)
+    |--------------------------------------------------------------------------
+    */
+    'production_gap_reasons' => [
+        'production_issue' => 'Problème de production',
+        'technical_loss' => 'Perte technique',
+        'defect' => 'Défaut',
+        'entry_error' => 'Erreur de saisie',
+        'other' => 'Autre',
+    ],
+
     'stock_movement_types' => [
         'supplier_in' => 'Entrée fournisseur',
         'production_out' => 'Sortie production',
@@ -252,6 +333,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Catégories de produits (cahier §4.2)
+    |--------------------------------------------------------------------------
+    | Amorçage du catalogue. Administrables ensuite par le Super-Admin.
+    */
+    'product_categories' => [
+        ['code' => 'bread', 'name' => 'Pains', 'position' => 10],
+        ['code' => 'pastry', 'name' => 'Viennoiseries', 'position' => 20],
+        ['code' => 'cake', 'name' => 'Pâtisserie', 'position' => 30],
+        ['code' => 'sandwich', 'name' => 'Sandwichs', 'position' => 40],
+        ['code' => 'drink', 'name' => 'Boissons', 'position' => 50],
+        ['code' => 'raw', 'name' => 'Matières premières', 'position' => 60],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Modes de paiement (cahier §14)
     |--------------------------------------------------------------------------
     */
@@ -260,7 +356,18 @@ return [
         'card' => 'Carte',
         'mobile_money' => 'Mobile Money',
         'transfer' => 'Virement',
+        'credit' => 'À crédit',
         'other' => 'Autre',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Types de vente (cahier §12 et §14)
+    |--------------------------------------------------------------------------
+    */
+    'sale_types' => [
+        'retail' => 'Détail',
+        'wholesale' => 'Grossiste',
     ],
 
     /*

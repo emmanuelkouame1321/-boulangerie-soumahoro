@@ -23,9 +23,10 @@ et reporting.
 |---|---|---|
 | 1 | `cahier_des_charges_gestion_boulangerie.md` | Règles métier, permissions, données, workflows, architecture |
 | 2 | `BakeryOS – Prototype (charte caisse).html` | Charte visuelle de référence : tokens, composants, écrans, caisse |
-| 3 | `ROADMAP.md` | Ordre d'exécution des travaux |
-| 4 | `docs/ARCHITECTURE.md` | Règles de code et de découpage |
-| 5 | `docs/DECISIONS.md` | Décisions prises et questions métier ouvertes |
+| 3 | `docs/CHARTE.md` | Contrat visuel : tokens, composants, règles vérifiées automatiquement |
+| 4 | `ROADMAP.md` | Ordre d'exécution des travaux |
+| 5 | `docs/ARCHITECTURE.md` | Règles de code et de découpage |
+| 6 | `docs/DECISIONS.md` | Décisions prises et questions métier ouvertes |
 
 **Le prototype n'est pas la source de vérité métier.** Il matérialise des
 parcours ; les règles viennent du cahier des charges.
@@ -56,7 +57,8 @@ composer test           # configuration + suite de tests
 composer lint           # Pint en mode vérification (CI)
 composer format         # Pint en mode correction
 composer analyse        # Larastan
-composer ci             # analyse + lint + tests (à lancer avant de conclure)
+composer charte         # vérifie que les vues respectent la charte (tokens)
+composer ci             # analyse + lint + charte + tests (à lancer avant de conclure)
 
 php artisan migrate --seed   # après chaque nouvelle migration
 npm run build                # assets de production
@@ -192,7 +194,9 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   Ne pas ajouter une seconde famille d'icônes.
 - **Couleurs / rayons / ombres** : uniquement les tokens de
   `resources/css/app.css`. Interdit : `#A96325`, `bg-amber-600`,
-  `rounded-[13px]`.
+  `rounded-[13px]`, `shadow-md`, `bg-white`. Le détail des tokens et des
+  composants est dans `docs/CHARTE.md` ; `composer charte` (joué par
+  `composer ci`) échoue à la moindre dérive.
 - **Types** : `declare(strict_types=1);` en tête de chaque nouveau fichier
   PHP applicatif. Types de retour explicites. `list<>` = tableau séquentiel.
 - **Argent en base** : entiers (FCFA sans décimale) ou `decimal(15,2)`,
@@ -215,9 +219,13 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
 - ❌ Supprimer une ligne d'historique métier.
 - ❌ Exposer une erreur technique brute à l'utilisateur (cahier §41) :
   message clair + code, jamais la stack trace.
+- ❌ Écrire une couleur, un rayon ou une ombre en dur : utiliser un token
+  de `resources/css/app.css` (voir `docs/CHARTE.md`).
+- ❌ Utiliser une palette Tailwind hors charte (`bg-red-500`), `bg-white`,
+  `shadow-sm` ou une seconde famille d'icônes.
 - ❌ Exécuter une opération critique sans transaction ni contrôle de
   permission serveur.
-- ❌ Marquer une tâche terminée sans `composer ci` vert.
+- ❌ Marquer une tâche terminée sans `composer ci` vert (charte incluse).
 
 ---
 
@@ -239,7 +247,7 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
 - Rôles et permissions semés, compte Super-Admin local
 - CI, Larastan et Pint configurés
 
-**Phase 1 — socle métier : en cours.**
+**Phase 1 — socle métier : terminée.**
 
 - Authentification maison (connexion, déconnexion, mot de passe oublié et
   réinitialisation), limitation des tentatives, `lang/fr/`
@@ -248,7 +256,16 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   trait `BelongsToBakery`
 - `SiteSwitcher` (Livewire) avec vérification serveur de l'affectation
 - CRUD Boulangeries réservé au Super-Admin (`BakeryPolicy`)
-- Unités et conversions amorcées (`UnitsSeeder`, 1 sac = 50 kg)
+- Unités et conversions : `UnitsSeeder` +
+  `App\Domain\Measurement\UnitConversionService` (BCMath, chaîne directe /
+  inverse) + écran `/settings/units`
+- Produits et matières premières : `product_categories`, `products`,
+  `product_prices`, `Product`, `ProductPolicy`, écrans `/products`
+- Utilisateurs, rôles et permissions : écrans `/settings/users` et
+  `/settings/roles`, `UserPolicy`, `RolePolicy` ; le rôle Super-Admin n'est
+  pas modifiable (`Gate::before` le contourne donc le contrôle est
+  posé au contrôleur)
+- Mode dégradé de `App\Support\Navigation` retiré : fail-closed
 
 **Charte BakeryOS intégrée (charte caisse).**
 
@@ -264,11 +281,99 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   ventes, pertes, clients, grossistes, ristournes, fournisseurs,
   employés, paie, charges, rapports, notifications, audit, utilisateurs,
   rôles, paramètres), chacun protégé par permission côté serveur
-- 43 tests verts, Larastan et Pint propres
+- 67 tests verts, Larastan et Pint propres
 
-**Prochaine tâche : finir la Phase 1 —** service de conversion d'unités,
-puis produits et matières premières (1.4), puis gestion des utilisateurs
-et rôles (1.5). Voir `ROADMAP.md`.
+**Phase 2 — stocks : terminée.**
+
+- Grand livre : `stock_movements` (jamais supprimé, `quantity_after`,
+  document source, `idempotency_key` unique) + stock matérialisé
+  `stocks` (physique, réservé) isolé par site (`BelongsToBakery`)
+- `App\Domain\Inventory\StockMovementService` : **seul** point d'écriture
+  du stock — transaction, `lockForUpdate`, idempotence par clé, refus du
+  stock négatif (`guards.allow_negative_stock`), recalcul des alertes
+- `StockService` (disponible = physique − réservé, statut, cumul) et
+  `StockAlertService` (seuil + cumulé, site prioritaire)
+- `StockReservationService` (réserver / libérer / consommer, idempotent)
+- Écrans `/inventory` (stock temps réel + ajustement motivé) et
+  `/inventory/movements` (grand livre filtrable et paginé)
+- Composants `business/` : `stock-status`, `stock-movement-badge`,
+  `expiry-indicator`
+- `Decimal` (BCMath) centralise le calcul décimal exact
+- 92 tests verts, Larastan et Pint propres
+
+**Phase 3 — achats : terminée.**
+
+- Fournisseurs : `suppliers` + pivot `product_suppliers` (prix négocié,
+  délai, référence, fournisseur principal), CRUD `/suppliers`
+- Commandes : `purchase_orders` + `purchase_order_items` (statuts §11.1
+  portés par `PurchaseOrderStatus`), `PurchaseOrderService` (référence
+  `PO-{Ym}-{NNNN}`, total FCFA recalculé, statut dérivé des réceptions)
+- Réception : `goods_receipts` + `goods_receipt_items`,
+  `GoodsReceiptService` (référence `GR-{Ym}-{NNNN}`) — la validation
+  écrit le stock via `StockMovementService` (`SupplierIn`), verrouille la
+  réception et **refuse une seconde validation**
+- Écrans `/purchasing/orders` (liste, création, détail avec écart et
+  formulaire de réception) et `/suppliers` (liste, création, édition)
+- Permissions ajoutées : `purchasing.create`, `purchasing.manage`,
+  `supplier.manage` ; rôle `production-manager` étendu
+- 112 tests verts (384 assertions), Larastan, Pint et charte propres
+
+**Phase 4 — production : terminée.**
+
+- Recettes : `recipes` + `recipe_items` (`RecipeDeductionMode` :
+  quantité / monétaire / cumulée / saisie), catalogue partagé entre sites
+- `RecipeCalculator` : besoins matières, ressources cumulées (fagot,
+  glace, sel), rendement théorique, coût théorique et écart, en BCMath
+- `ProductionService` : bloc transactionnel §27 — consommation des
+  matières (`ProductionOut`), sortie de produit fini (`ProductionIn`),
+  création de lot et calcul de la date limite, coût réel, écart motivé,
+  **non rejouable** (garde d'état + clés d'idempotence)
+- Lots : `production_batches` + `production_outputs`, statut `BatchStatus`
+  et `expiry-indicator` prêt pour la Phase 6
+- Écrans `/production` (liste), `/production/create` (assistant 4 étapes,
+  calculs serveur), `/production/{order}` (détail),
+  `/production/recipes` (nomenclatures)
+- Composants `business/` : `stepper`, `recipe-preview`,
+  `production-summary`, `quantity-input`, `product-selector`,
+  `confirm-dialog`
+- Permissions : `recipe.manage` ; rôle `production-manager` étendu
+- 129 tests verts (445 assertions), Larastan, Pint et charte propres
+
+**Phase 5 — ventes : terminée.**
+
+- Ventes : `sales` + `sale_items` (`SaleType` retail/wholesale,
+  `SaleStatus`), référence `SALE-{Ym}-{NNNN}` générée côté serveur,
+  montants en FCFA entiers, quantités en BCMath
+- `App\Domain\Sales\SalesService::record()` : transaction, prix par
+  défaut (`sale_price` ou `wholesale_price` selon le type), sortie de
+  stock `SaleOut` via `StockMovementService` avec clé
+  `sale:{saleId}:item:{itemId}`, `Payment` si mode de paiement,
+  `EmptySaleException` sans ligne, rejeu géré par l'index unique
+  `idempotency_key` (retourne la vente existante)
+- Ventes grossistes : type `SaleType::Wholesale` porté par la vente
+  (pas de table `wholesaler_sales` — voir ADR-016)
+- Clients : `customers` (isolé par site, soft deletes), CRUD `/customers`,
+  permission ajoutée `customer.manage` (rôles sales-manager et cashier)
+- Modes de paiement : table `payment_methods` amorcée depuis
+  `config('boulangerie.payment_methods')` (espèces, mobile money,
+  virement, crédit, autre)
+- Clôture : `App\Domain\Sales\DayClosingService` — snapshot
+  produit/vendu/attendu par date, **unique par site et par date**
+  (`DayClosingAlreadyExistsException`), écart par produit
+  (`day_closings.gap_total`), observation obligatoire au-delà de
+  `day_closing.gap_justification_threshold`
+  (`DayClosingGapJustificationRequiredException`, cahier §15)
+- Écrans `/sales` (liste, recherche, date), `/sales/create`,
+  `/sales/{sale}`, `/sales/closings{,/create,/{closing}}`, `/customers`
+- Caisse (`/caisse`) câblée : catalogue réel `FinishedGood`, stock temps
+  réel, `validatePayment()` appelle `SalesService` (insuffisance et vente
+  vide rendues en message clair)
+- Policies `SalePolicy`, `CustomerPolicy`, `DayClosingPolicy` ; 152 tests
+  verts (514 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : Phase 6 — pertes et péremption.** Lots expirés,
+ `ExpiryService` + job planifié, transformation des invendus en pertes,
+ alertes. Voir `ROADMAP.md`.
 
 ### Repères utiles
 

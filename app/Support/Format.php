@@ -55,6 +55,27 @@ final class Format
     }
 
     /**
+     * Quantité de stock : décimales significatives, sans zéro inutile
+     * (24 → « 24 », 0.5000 → « 0,5 »).
+     */
+    public static function stock(int|float|string|null $value): string
+    {
+        if ($value === null || $value === '') {
+            return '0';
+        }
+
+        $trimmed = rtrim(rtrim((string) $value, '0'), '.');
+
+        if ($trimmed === '' || $trimmed === '-0') {
+            $trimmed = '0';
+        }
+
+        $decimals = str_contains($trimmed, '.') ? strlen(substr($trimmed, (int) strpos($trimmed, '.') + 1)) : 0;
+
+        return self::number($trimmed, $decimals);
+    }
+
+    /**
      * Écart signé, ex. « -18 » ou « +4 ».
      */
     public static function signed(int|float|string|null $value, int $decimals = 0): string

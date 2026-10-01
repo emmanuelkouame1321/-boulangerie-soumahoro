@@ -60,9 +60,13 @@
         "analyse": [
             "phpstan analyse --no-progress --memory-limit=1G"
         ],
+        "charte": [
+            "@php artisan charte:check"
+        ],
         "ci": [
             "@analyse",
             "@lint",
+            "@charte",
             "@test"
         ],
         "post-autoload-dump": [

@@ -3,46 +3,85 @@
 @endphp
 
 <x-layouts.app title="Ventes">
-    <x-layout.page-header eyebrow="Commercial • Aujourd’hui" title="Ventes">
+    <x-layout.page-header
+        eyebrow="Commercial"
+        title="Ventes"
+        description="Les ventes au détail enregistrées. Chaque vente validée a déduit le stock de produits finis."
+    >
         <x-slot:actions>
-            <x-ui.button variant="primary" icon="monitor-smartphone" href="{{ route('pos') }}">Nouvelle vente</x-ui.button>
+            @if ($canCreate)
+                <x-ui.button variant="secondary" icon="monitor-smartphone" :href="route('pos')">Caisse</x-ui.button>
+                <x-ui.button variant="primary" icon="plus" :href="route('sales.create')">Nouvelle vente</x-ui.button>
+            @endif
         </x-slot:actions>
     </x-layout.page-header>
 
-    <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
-            <x-ui.stat-card label="CA du jour" :value="Format::money(2_450_000)" trend="1 284 ventes" trend-tone="success" icon="banknote" />
-            <x-ui.stat-card label="Particuliers" :value="Format::money(1_720_000)" trend="70 % du CA" trend-tone="success" icon="users" />
-            <x-ui.stat-card label="Grossistes" :value="Format::money(730_000)" trend="30 % du CA" trend-tone="success" icon="store" />
-            <x-ui.stat-card label="Créances" :value="Format::money(185_000)" trend="4 comptes" trend-tone="warning" icon="circle-dollar-sign" />
-        </div>
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+    @endif
 
-        <x-ui.card flush>
-            <div class="flex flex-wrap gap-2 p-4">
-                <x-ui.search-input placeholder="N° vente, client, caissier…" />
-                <x-ui.button variant="secondary" onclick="window.toast('Filtre : aujourd’hui')">Aujourd’hui</x-ui.button>
-                <x-ui.button variant="secondary" onclick="window.toast('Sélecteur de période')">Période</x-ui.button>
-                <x-ui.button variant="secondary" icon="download" onclick="window.toast('Export en préparation')">Exporter</x-ui.button>
+    @if (session('error'))
+        <x-ui.alert tone="danger" class="mb-4">{{ session('error') }}</x-ui.alert>
+    @endif
+
+    <x-ui.card flush>
+        <form method="GET" action="{{ route('sales.index') }}" class="flex flex-wrap items-end gap-3 p-4">
+            <div class="min-w-56 flex-1">
+                <x-ui.search-input name="search" :value="$search" placeholder="Référence ou client…" />
             </div>
 
-            <x-ui.data-table :headers="['Vente', 'Client', ['label' => 'Articles', 'align' => 'right'], 'Paiement', ['label' => 'Total', 'align' => 'right'], 'Caissier', 'Statut']">
-                @foreach ([
-                    ['SALE-00045', 'Comptoir', 6, 'Espèces', 3_300, 'Awa', 'success', 'Validée'],
-                    ['SALE-00044', 'Boulangerie ABC', 120, 'Virement', 96_000, 'Kouassi', 'success', 'Validée'],
-                    ['SALE-00043', 'Comptoir', 4, 'Mobile Money', 4_200, 'Awa', 'success', 'Validée'],
-                    ['SALE-00042', 'Hôtel XYZ', 38, 'À crédit', 42_000, 'Kouassi', 'warning', 'En attente'],
-                ] as [$ref, $customer, $items, $payment, $total, $cashier, $tone, $status])
+            <div class="min-w-44">
+                <x-ui.form-field name="date" label="Date" type="date" :value="$date" />
+            </div>
+
+            <x-ui.button type="submit" variant="secondary">Filtrer</x-ui.button>
+
+            @if ($search !== '' || $date !== '')
+                <x-ui.button variant="ghost" :href="route('sales.index')">Effacer</x-ui.button>
+            @endif
+        </form>
+
+        @if ($sales->isEmpty())
+            <div class="p-4">
+                <x-ui.empty-state
+                    icon="receipt"
+                    title="{{ $search !== '' || $date !== '' ? 'Aucun résultat' : 'Aucune vente' }}"
+                    description="Enregistrez une vente au détail ; le stock de produits finis se déduit automatiquement."
+                >
+                    @if ($canCreate)
+                        <x-slot:action>
+                            <x-ui.button variant="primary" icon="plus" :href="route('sales.create')">Nouvelle vente</x-ui.button>
+                        </x-slot:action>
+                    @endif
+                </x-ui.empty-state>
+            </div>
+        @else
+            <x-ui.data-table :headers="['Vente', 'Client', 'Site', 'Date', ['label' => 'Articles', 'align' => 'right'], 'Paiement', ['label' => 'Total', 'align' => 'right'], 'Statut', '']">
+                @foreach ($sales as $sale)
+                    @php
+                        $method = $sale->payments->first()?->method;
+                    @endphp
                     <tr>
-                        <td class="font-bold">{{ $ref }}</td>
-                        <td>{{ $customer }}</td>
-                        <td class="numeric text-right">{{ $items }}</td>
-                        <td>{{ $payment }}</td>
-                        <td class="numeric text-right font-bold">{{ Format::money($total) }}</td>
-                        <td>{{ $cashier }}</td>
-                        <td><x-ui.status-badge :tone="$tone" :label="$status" :icon="false" /></td>
+                        <td class="font-bold">{{ $sale->reference }}</td>
+                        <td>{{ $sale->customer?->name ?? 'Comptoir' }}</td>
+                        <td>{{ $sale->bakery?->name ?? '—' }}</td>
+                        <td>{{ $sale->sale_date?->format('d/m/Y') ?? '—' }}</td>
+                        <td class="numeric text-right">{{ Format::number($sale->items_count) }}</td>
+                        <td>{{ $method !== null ? ($paymentMethods[$method] ?? $method) : '—' }}</td>
+                        <td class="numeric text-right font-bold">{{ Format::money($sale->total) }}</td>
+                        <td>
+                            <x-ui.status-badge :tone="$sale->status->tone()" :label="$sale->status->label()" :icon="false" />
+                        </td>
+                        <td>
+                            <x-ui.button variant="secondary" size="sm" :href="route('sales.show', $sale)">Ouvrir</x-ui.button>
+                        </td>
                     </tr>
                 @endforeach
             </x-ui.data-table>
-        </x-ui.card>
-    </div>
+
+            <div class="p-4">
+                {{ $sales->links() }}
+            </div>
+        @endif
+    </x-ui.card>
 </x-layouts.app>

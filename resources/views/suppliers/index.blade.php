@@ -1,46 +1,88 @@
+@php
+    use App\Support\Format;
+@endphp
+
 <x-layouts.app title="Fournisseurs">
-    <x-layout.page-header eyebrow="Approvisionnement" title="Fournisseurs">
+    <x-layout.page-header
+        eyebrow="Achats"
+        title="Fournisseurs"
+        description="Le catalogue partagé des fournisseurs, leurs conditions et leur historique de commandes."
+    >
         <x-slot:actions>
-            <x-ui.button variant="primary" icon="plus" wire:click="$dispatch('open-modal', 'supplier-create')">Nouveau fournisseur</x-ui.button>
+            @if ($canManage)
+                <x-ui.button variant="primary" icon="plus" :href="route('suppliers.create')">Nouveau fournisseur</x-ui.button>
+            @endif
         </x-slot:actions>
     </x-layout.page-header>
 
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+    @endif
+
     <x-ui.card flush>
-        <div class="flex flex-wrap gap-2 p-4">
-            <x-ui.search-input placeholder="Rechercher un fournisseur…" />
-            <x-ui.button variant="secondary">Tous les sites</x-ui.button>
-            <x-ui.button variant="secondary">Statut</x-ui.button>
-            <x-ui.button variant="secondary" icon="download" onclick="window.toast('Export en préparation')">Exporter</x-ui.button>
-        </div>
+        <form method="GET" action="{{ route('suppliers.index') }}" class="flex flex-wrap items-end gap-3 p-4">
+            <div class="min-w-56 flex-1">
+                <x-ui.search-input name="search" :value="$search" placeholder="Nom, contact, téléphone, spécialité…" />
+            </div>
 
-        <x-ui.data-table :headers="['Fournisseur', 'Contact', 'Spécialité', ['label' => 'Commandes', 'align' => 'right'], 'Action']">
-            @foreach ([
-                ['Fournisseur Ivoire', '07 00 00 10 01', 'Farine, levure', '12 commandes'],
-                ['Minoterie Abidjan', '05 00 00 20 02', 'Farine', '8 commandes'],
-                ['Agro Supply', '01 00 00 30 03', 'Emballages, sel', '6 commandes'],
-            ] as [$name, $contact, $specialty, $orders])
-                <tr>
-                    <td class="font-bold">{{ $name }}</td>
-                    <td>{{ $contact }}</td>
-                    <td>{{ $specialty }}</td>
-                    <td class="numeric text-right">{{ $orders }}</td>
-                    <td><x-ui.button variant="secondary" size="sm" onclick="window.toast('Fiche {{ $name }} ouverte')">Ouvrir</x-ui.button></td>
-                </tr>
-            @endforeach
-        </x-ui.data-table>
+            <div class="min-w-44">
+                <x-ui.select name="state" :options="$stateOptions" :selected="$state" placeholder="Tous les statuts" />
+            </div>
+
+            <x-ui.button type="submit" variant="secondary">Filtrer</x-ui.button>
+
+            @if ($search !== '' || $state !== '')
+                <x-ui.button variant="ghost" :href="route('suppliers.index')">Effacer</x-ui.button>
+            @endif
+        </form>
+
+        @if ($suppliers->isEmpty())
+            <div class="p-4">
+                <x-ui.empty-state
+                    icon="truck"
+                    title="{{ $search !== '' || $state !== '' ? 'Aucun résultat' : 'Aucun fournisseur' }}"
+                    description="Ajoutez un fournisseur pour lui adresser des commandes de matières premières."
+                >
+                    @if ($canManage)
+                        <x-slot:action>
+                            <x-ui.button variant="primary" icon="plus" :href="route('suppliers.create')">Nouveau fournisseur</x-ui.button>
+                        </x-slot:action>
+                    @endif
+                </x-ui.empty-state>
+            </div>
+        @else
+            <x-ui.data-table :headers="['Fournisseur', 'Contact', 'Spécialité', ['label' => 'Commandes', 'align' => 'right'], 'Statut', '']">
+                @foreach ($suppliers as $supplier)
+                    <tr>
+                        <td>
+                            <span class="block font-bold text-ink">{{ $supplier->name }}</span>
+                            <span class="block text-[11px] text-soft">{{ $supplier->identification ?? '—' }}</span>
+                        </td>
+                        <td>
+                            <span class="block">{{ $supplier->contact_name ?? '—' }}</span>
+                            <span class="block text-[11px] text-soft">{{ $supplier->phone ?? '—' }}</span>
+                        </td>
+                        <td>{{ $supplier->categories ?? '—' }}</td>
+                        <td class="numeric text-right">{{ Format::number($supplier->purchase_orders_count) }}</td>
+                        <td>
+                            <x-ui.status-badge
+                                :tone="$supplier->is_active ? 'success' : 'neutral'"
+                                :label="$supplier->is_active ? 'Actif' : 'Inactif'"
+                                :icon="false"
+                            />
+                        </td>
+                        <td>
+                            @if ($canManage)
+                                <x-ui.button variant="secondary" size="sm" :href="route('suppliers.edit', $supplier)">Modifier</x-ui.button>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </x-ui.data-table>
+
+            <div class="p-4">
+                {{ $suppliers->links() }}
+            </div>
+        @endif
     </x-ui.card>
-
-    <x-ui.modal name="supplier-create" title="Nouveau fournisseur" subtitle="Formulaire prototype">
-        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <x-ui.form-field name="name" label="Nom / référence" placeholder="Saisir…" />
-            <x-ui.form-field name="phone" label="Contact" inputmode="tel" />
-            <x-ui.form-field name="specialty" label="Spécialité" placeholder="Farine, levure…" />
-            <x-ui.select name="state" :options="['Actif' => 'Actif', 'En attente' => 'En attente']" label="Statut" />
-        </div>
-
-        <x-slot:footer>
-            <x-ui.button variant="secondary" @click="open = false">Annuler</x-ui.button>
-            <x-ui.button variant="primary" @click="open = false; window.toast('Fournisseur enregistré')">Enregistrer</x-ui.button>
-        </x-slot:footer>
-    </x-ui.modal>
 </x-layouts.app>

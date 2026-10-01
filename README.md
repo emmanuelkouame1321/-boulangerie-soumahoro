@@ -14,6 +14,7 @@ ristournes, employés, paie, charges, rapports et audit.
 |---|---|
 | [`cahier_des_charges_gestion_boulangerie.md`](cahier_des_charges_gestion_boulangerie.md) | Règles métier, données, workflows, architecture — **source de vérité n° 1** |
 | [`BakeryOS – Prototype (charte caisse).html`](BakeryOS%20%E2%80%93%20Prototype%20(charte%20caisse).html) | Charte visuelle de référence : tokens, composants, écrans, caisse |
+| [`docs/CHARTE.md`](docs/CHARTE.md) | Contrat visuel : tokens, catalogue de composants, règles vérifiées automatiquement |
 | [`AGENTS.md`](AGENTS.md) | Manuel d'exploitation pour le développement automatisé |
 | [`ROADMAP.md`](ROADMAP.md) | Plan de développement par phases |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Découpage des couches et motifs obligatoires |
@@ -99,9 +100,10 @@ Personnalisable via `SUPER_ADMIN_EMAIL` et `SUPER_ADMIN_PASSWORD` dans
 | `composer dev` | Serveur + queue + logs + Vite |
 | `composer test` | Suite de tests |
 | `composer analyse` | Analyse statique (Larastan niveau 5) |
+| `composer charte` | Vérifie que les vues respectent la charte (tokens uniquement) |
 | `composer lint` | Vérification du style (Pint) |
 | `composer format` | Correction automatique du style |
-| `composer ci` | `analyse` + `lint` + `test` — à lancer avant de conclure |
+| `composer ci` | `analyse` + `lint` + `charte` + `test` — à lancer avant de conclure |
 | `npm run build` | Assets de production |
 | `npm run dev` | Vite en mode watch |
 
@@ -123,11 +125,12 @@ config/
 └── navigation.php    menu applicatif
 
 resources/
-├── css/app.css               tokens du design system
+├── css/app.css               tokens de la charte BakeryOS (source unique)
 ├── js/app.js
 └── views/
     ├── components/ui/        primitives
     ├── components/layout/    AppShell, sidebar, topbar, page-header
+    ├── components/business/  StockStatus, StockMovementBadge, ExpiryIndicator
     ├── components/layouts/   gabarit HTML
     └── <module>/             pages
 ```

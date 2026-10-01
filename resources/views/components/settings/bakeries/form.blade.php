@@ -85,7 +85,7 @@
                 id="field-notes"
                 name="notes"
                 rows="4"
-                class="mt-1.5 block w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink transition
+                class="mt-1.5 block w-full rounded-control border bg-surface px-3 py-2.5 text-sm text-ink transition
                     placeholder:text-soft focus:border-brand-600 focus:ring-2 focus:ring-brand-600/25 focus:outline-none
                     {{ $errors->has('notes') ? 'border-danger' : 'border-line' }}"
                 @if ($errors->has('notes')) aria-invalid="true" aria-describedby="field-notes-error" @endif

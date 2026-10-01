@@ -49,6 +49,10 @@
     --color-muted: #66716b;
     --color-soft: #8b9690;
 
+    /* Croûte — dégradé doré des visuels produits de la caisse */
+    --color-crust-100: #f1d08f;
+    --color-crust-500: #c8902e;
+
     /* États */
     --color-success: #35a64a;
     --color-success-bg: #effaf1;

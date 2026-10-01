@@ -160,9 +160,11 @@ tokens → primitives → composants → patterns métier → layouts → pages 
 
 Ne jamais dessiner un écran isolé avant que ses composants existent.
 
-Charte : `BakeryOS – Prototype (charte caisse).html`. Tokens dans
-`resources/css/app.css` (palette `brand` verte + `context` bleue,
-Roboto, rayons 4–8 px). Composants partagés disponibles :
+Charte : `BakeryOS – Prototype (charte caisse).html`. Le contrat visuel
+(tokens, catalogue de composants, interdits, checklist) est dans
+`docs/CHARTE.md`. Tokens dans `resources/css/app.css` (palette `brand`
+verte + `context` bleue, Roboto, rayons 4–8 px). Composants partagés
+disponibles :
 
 ```
 components/ui/       button, status-badge, stat-card, card, data-table,
@@ -170,8 +172,77 @@ components/ui/       button, status-badge, stat-card, card, data-table,
                      alert, empty-state, form-field, select, icon
 components/layout/   app-shell, sidebar, topbar, page-header
 components/layouts/  app (gabarit applicatif), auth, pos (caisse plein écran)
+components/business/ stock-status, stock-movement-badge, expiry-indicator,
+                     stepper, recipe-preview, production-summary,
+                     quantity-input, product-selector, confirm-dialog
 ```
 
 Le module Caisse (`App\Livewire\Sales\PointOfSale`) est un composant
 Livewire classique : il porte l'état du panier et appelle, à terme, un
 service de `app/Domain/Sales/` pour toute règle de vente.
+
+## 12. Module Achats
+
+Le module Achats suit le motif transactionnel du §4 :
+
+```
+PurchaseOrderService   → crée commande + lignes, total, statut dérivé
+GoodsReceiptService    → create() puis validate()
+validate()             → réception non rejouable → StockMovementService (SupplierIn)
+```
+
+- `GoodsReceiptService::validate()` est **le seul** point d'entrée du
+  stock depuis une réception ; il verrouille la réception et la commande,
+  refuse une seconde validation et pose une clé d'idempotence par ligne
+  (`goods-receipt:{receiptId}:item:{itemId}`). Voir ADR-014.
+- Le statut de commande n'est jamais saisi : `recalculateStatus()` le
+  dérive des quantités reçues.
+- Les erreurs métier sont portées par des exceptions dédiées
+  (`GoodsReceiptAlreadyValidatedException`,
+  `PurchaseOrderNotReceivableException`) et rendues à l'utilisateur par un
+  message clair, jamais par la stack trace.
+
+## 13. Module Production
+
+```
+RecipeCalculator   → besoins, rendement théorique, coût, écart (BCMath)
+ProductionService  → create() puis validate()
+validate()         → production non rejouable → mouvements de stock
+```
+
+- `RecipeCalculator` dérive les ressources par mode de déduction
+  (`quantity` / `monetary` / `cumulated` / `manual`) et ne stocke rien.
+- `ProductionService::validate()` est **le seul** point d'entrée du stock
+  depuis une production : sorties `ProductionOut` pour les matières,
+  entrée `ProductionIn` pour le produit fini, lot (`production_batches`)
+  et coût réel. Il verrouille l'ordre, refuse une seconde validation et
+  pose une clé d'idempotence par mouvement. Voir ADR-015.
+- `produce()` enveloppe création et validation dans une seule
+  transaction (§27) : rien de partiellement validé ne subsiste.
+- L'assistant de production est rendu côté serveur : la vue ne calcule
+  pas, elle affiche les résultats du `RecipeCalculator`.
+
+## 14. Module Ventes
+
+```
+SalesService        → record() : vente + lignes + paiement + stock (une transaction)
+DayClosingService   → snapshot() puis close() : inventaire, écart, justification
+PointOfSale (Livewire) → panier + appel à SalesService (aucune règle dans le composant)
+```
+
+- `SalesService::record()` est **le seul** point d'entrée du stock depuis
+  une vente : sorties `SaleOut` via `StockMovementService`, clé
+  d'idempotence par ligne (`sale:{saleId}:item:{itemId}`), prix par
+  défaut déduit du produit (`sale_price` / `wholesale_price` selon
+  `SaleType`). Voir ADR-016.
+- Le rejeu réseau est absorbé par l'index unique `sales.idempotency_key` :
+  la vente existante est retournée au lieu d'être recréée.
+- Une vente qui épuise le stock échoue dans la transaction avec un
+  message métier (`InsufficientStockException`), jamais en stock négatif.
+- `DayClosingService::close()` refuse une seconde clôture pour le même
+  site et la même date (`[bakery_id, closing_date]` unique) et exige une
+  observation dès qu'un écart absolu par produit dépasse
+  `config('boulangerie.day_closing.gap_justification_threshold')`.
+- Les listes de ventes, clients et clôtures sont paginées et cherchables
+  côté serveur ; les permissions sont portées par `SalePolicy`,
+  `CustomerPolicy` et `DayClosingPolicy`.

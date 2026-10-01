@@ -199,6 +199,220 @@ entrée qui la remplace.
 
 ---
 
+## ADR-012 — Fin de la Phase 1 : produits partagés et unités administrées
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Décisions :**
+  1. **Catalogue produits partagé.** `products` ne porte pas de `bakery_id` :
+     le catalogue est commun à tous les sites, seul le stock est propre à un
+     site (cahier §3.1). Le champ « site(s) autorisé(s) » du cahier §4.2 sera
+     modélisé par un pivot de sites en Phase 2 si besoin.
+  2. **`product_suppliers` reporté en Phase 3.** La table `suppliers` du
+     cahier §24 n'existe pas encore : créer la relation à sens unique
+     produirait un code mort.
+  3. **Prix en entiers FCFA**, historisés dans `product_prices` ; le prix
+     courant reste sur `products`. Jamais de `float`.
+  4. **`UnitConversionService` en décimal exact (BCMath)** : conversion
+     directe, inverse et chaînée par parcours de graphe borné à 4 niveaux,
+     facteur calculé à 16 décimales puis arrondi de présentation.
+  5. **Mode dégradé de `Navigation` retiré** : sans utilisateur, aucune
+     entrée permissionnée n'est affichée.
+- **Justification :** le cahier impose le catalogue et les conversions
+  configurables ; ces choix permettent de livrer la Phase 1 sans introduire
+  de règle métier prématurée tout en gardant le fail-closed.
+- **Conséquence :** à réévaluer dès la Phase 2 (stock par site) et la
+  Phase 3 (fournisseurs).
+
+---
+
+## ADR-013 — Stock : grand livre + matérialisation verrouillée
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §3.2 et §27 à §29 imposent une source de
+  vérité unique du stock, un grand livre traçable, des transactions et
+  l'idempotence des opérations critiques.
+- **Décisions :**
+  1. **Double représentation.** `stock_movements` est le grand livre
+     (vérité, jamais supprimé — `restrictOnDelete`, aucune mise à jour) ;
+     `stocks` n'est qu'un cache matérialisé par (produit, site)
+     reconstituable depuis les mouvements.
+  2. **Point d'écriture unique.** `StockMovementService::apply()` est le
+     seul code autorisé à écrire `stocks.quantity`. Il exige une quantité
+     strictement positive, dérive le sens du type, refuse un stock
+     négatif (sauf `guards.allow_negative_stock`), verrouille la ligne
+     (`lockForUpdate`) et journalise `quantity_after`.
+  3. **Idempotence par clé.** Un `idempotency_key` unique est persisté ;
+     rejouer la même clé renvoie le mouvement existant au lieu de le
+     rejouer (y compris en cas de course sur l'index unique).
+  4. **Création de la ligne de stock.** `insertOrIgnore` puis `lockForUpdate`
+     évitent la fenêtre de course à la première écriture d'un couple
+     (produit, site).
+  5. **Réservations.** `stock_reservations` immobilise sans consommer ;
+     `StockReservationService` réserve / libère / consomme (idempotent),
+     le disponible valant « physique − réservé » (cahier §37.3).
+  6. **Alertes.** `stock_alert_rules` + `stock_alerts` : recalcul après
+     chaque mouvement. Règle du site prioritaire sur la règle globale ;
+     à défaut de règle, le seuil porté par le produit fait repli. Une
+     condition disparue résout l'alerte automatiquement.
+  7. **Décimal exact.** Nouveau `App\Support\Decimal` (BCMath) partagé
+     par les services de stock ; jamais de `float`.
+- **Justification :** séparer la vérité (mouvement) de la performance
+  (cache) permet de vérifier le second par le premier — test
+  `test_the_stock_is_derivable_from_the_ledger`.
+- **Conséquence :** `ignoreErrors` retiré de `phpstan.neon` (le trait
+  `BelongsToBakery` est désormais utilisé). Les transferts inter-sites
+  restent en Phase 10 ; les lots et la péremption en Phases 4 et 6.
+
+---
+
+## ADR-014 — Achats : réception non rejouable et statut de commande dérivé
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §11.3 impose qu'une réception validée augmente
+  le stock automatiquement et ne puisse jamais l'augmenter deux fois, même
+  en cas de double clic, de rafraîchissement ou de rejeu réseau. Le §27
+  impose transactions, verrouillage et idempotence.
+- **Décisions :**
+  1. **Point d'entrée unique du stock.** `GoodsReceiptService::validate()`
+     est le seul code qui transforme une réception en entrée de stock. Il
+     appelle `StockMovementService::apply()` (type `SupplierIn`) : aucune
+     écriture directe de `stocks.quantity` depuis le module Achats.
+  2. **Non rejouabilité par état, pas seulement par clé.** La validation
+     ouvre une transaction, recharge la réception
+     (`withoutBakeryScope()->lockForUpdate()`) et refuse si
+     `validated_at !== null` ou si le statut est déjà `validated`
+     (`GoodsReceiptAlreadyValidatedException`). La garde est évaluée
+     **dans** la transaction et sous verrou, donc une seconde soumission
+     concurrente échoue proprement.
+  3. **Idempotence par ligne.** Chaque mouvement porte une clé
+     `goods-receipt:{receiptId}:item:{itemId}` : même si la garde d'état
+     était contournée, le grand livre ne doublerait pas la quantité.
+  4. **Statut de commande dérivé.** Le statut de `PurchaseOrder` n'est pas
+     saisi : `recalculateStatus()` le calcule à partir des quantités
+     reçues (toutes les lignes couvertes → `validated`, sinon
+     `partially_received`). Un statut dérivé ne peut pas désynchroniser
+     l'avancement réel.
+  5. **Références générées côté serveur.** `PO-{Ym}-{NNNN}` et
+     `GR-{Ym}-{NNNN}`, produites dans la transaction ; jamais saisies par
+     l'utilisateur.
+  6. **Total et lignes en FCFA entiers.** `lineTotal()` arrondit au franc
+     (`bcadd($raw, '0.5', 0)`) ; les quantités restent en décimal exact
+     BCMath.
+- **Justification :** séparer la garde d'état (métier, lisible) de la
+  clé d'idempotence (filet technique) couvre à la fois l'usage normal et
+  les cas de course, sans faire reposer la correction sur une seule
+  protection.
+- **Conséquence :** la réception partielle est supportée et réorientée
+  vers une seconde réception (`isReceivable()`, `remainingQuantity()`) ;
+  le contrôle des écarts est exposé à l'écran de détail. La commande
+  affichée comme `received` reste réceptionnable pour couvrir un écart.
+
+---
+
+## ADR-015 — Production : ressources typées, lot unique et écart motivé
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §5.3 distingue quatre natures de ressources, le
+  §7.3 décrit un bloc transactionnel de validation, le §7.4 impose de
+  conserver l'écart et son motif, et le §8 impose la création d'un lot à
+  chaque production de produit fini. Les questions métier 1 à 5 du §54
+  (glace, fagot, levure, sel, durée limite du pain) restent ouvertes.
+- **Décisions :**
+  1. **Ressources typées par un mode de déduction.**
+     `RecipeDeductionMode` porte la distinction du §5.3 : `quantity`
+     (stock déduit), `monetary` (coût configuré, pas de stock),
+     `cumulated` (cumul, pas de stock) et `manual` (quantité réelle
+     saisie). Seules les ressources physiques génèrent un mouvement.
+  2. **Glace et fagot modélisés comme produits de type `Resource`.**
+     Leur coût vit dans `recipe_items.unit_cost` (FCFA par lot) ; la
+     question « quantité physique ou coût » est tranchée côté coût, la
+     valeur restant administrable.
+  3. **Recette partagée entre sites.** `recipes` ne porte pas de
+     `bakery_id` (comme le catalogue produits, ADR-012) ; les paramètres
+     propres à un site passent par la production.
+  4. **Validation transactionnelle et non rejouable.**
+     `ProductionService::validate()` verrouille l'ordre, refuse un ordre
+     déjà validé ou annulé, consomme les matières, crée le lot et l'entrée
+     de produit fini, puis calcule le coût. Chaque mouvement porte une clé
+     `production:{id}:item:{id}` (sortie) ou `production:{id}:output`
+     (entrée). `produce()` enveloppe création et validation dans une
+     **seule** transaction : un échec n'laisse aucun ordre orphelin.
+  5. **Écart motivé obligatoire.** L'écart vaut « réel − théorique ».
+     `guards.require_production_gap_reason` exige un motif configurable
+     (`config('boulangerie.production_gap_reasons')`) dès que l'écart est
+     non nul ; un écart nul efface le motif.
+  6. **Un lot par production.** Une production crée un lot (`initial`,
+     `available`, `sold`, `lost`, dates, statut `BatchStatus`). Sa date
+     limite vaut recette → produit → `production.default_shelf_life_days`.
+- **Justification :** typer la ressource permet de calculer les besoins et
+  les coûts sans branchement sur un libellé ; la garde d'état couplée à la
+  clé d'idempotence couvre l'usage normal et les courses (même logique
+  qu'ADR-014).
+- **Conséquence :** la question §54-5 (durée limite du pain) reste
+  configurable par produit et par recette ; la transformation des invendus
+  en pertes est traitée en Phase 6 avec `expiry-indicator`.
+
+---
+
+## ADR-016 — Ventes : sortie idempotente, type de vente et clôture unique
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §13 impose une vente qui déduit le stock sans
+  jamais le rendre négatif, §15 décrit la clôture journalière avec
+  justification des écarts importants, et §29 impose l'idempotence des
+  opérations critiques. Les questions métier 8, 9, 10, 15, 17 et 18 du
+  §54 (retours grossistes, prix, modes de paiement, caisse, tickets)
+  restent ouvertes.
+- **Décisions :**
+  1. **Une vente = une sortie `SaleOut` idempotente par ligne.**
+     `SalesService::record()` ouvre une transaction, crée la vente et ses
+     lignes, puis écrit le stock via `StockMovementService` avec une clé
+     `sale:{saleId}:item:{itemId}`. Le stock négatif reste refusé par le
+     service de stock (ADR-013) : la vente échoue proprement avec un
+     message métier, jamais un stock négatif.
+  2. **Rejeu détecté par contrainte unique.** `sales.idempotency_key` est
+     unique : un double clic ou un retry réseau rejoint la vente
+     existante (`UniqueConstraintViolationException` → lecture de la
+     vente) au lieu d'en créer une seconde.
+  3. **Pas de table `wholesaler_sales`.** Le §13 décrit les ventes
+     grossistes avec « prix applicable » ; le type `SaleType` (retail /
+     wholesale) porte cette distinction sur `sales`, et le prix par
+     défaut se déduit du produit (`sale_price` ou `wholesale_price`).
+     Une table séparée dupliquerait paiements, lignes et clôture. Les
+     ristournes et fiches grossistes restent en Phase 7.
+  4. **Clôture unique par site et par date.** Index unique
+     `[bakery_id, closing_date]` + garde dans la transaction
+     (`DayClosingAlreadyExistsException`). L'écart vaut « restant saisi −
+     (produit − vendu) » par produit ; les totaux sont matérialisés sur
+     `day_closings`.
+  5. **Justification d'écart au-delà d'un seuil.** Cahier §15 : « une
+     différence importante peut demander une justification ».
+     `day_closing.gap_justification_threshold` (défaut 10 unités, 0 =
+     tout écart) rend l'observation obligatoire
+     (`DayClosingGapJustificationRequiredException`), contrôlée dans la
+     transaction avant toute écriture.
+  6. **Paiements en lignes.** `payments` (méthode, montant, date) lié à
+     la vente, méthodes typées par la table `payment_methods` amorcée
+     depuis la config (+ `credit` « À crédit »).
+  7. **Ordre des middleware.** `ResolveBakeryContext` précède
+     `SubstituteBindings` (priority list de `bootstrap/app.php`) : sans
+     cela, un route model binding sur un modèle `BelongsToBakery` échoue
+     en 404 (scope fail-closed) au premier appel d'une session.
+- **Justification :** réunir type, paiements et clôture sur le même
+  modèle évite des jointures fragiles ; la clé unique et le
+  `StockMovementService` (ADR-013) suffisent à garantir « jamais deux fois
+  » sans rejeu applicatif.
+- **Conséquence :** les retours et invendus grossistes (questions §54-8
+  et 9) s'appuieront sur ce modèle en Phase 7 (annulation compensatoire,
+  jamais de suppression). L'impression de ticket (§54-18) reste en Phase 9.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le

@@ -20,14 +20,14 @@
         <ul class="flex flex-wrap items-center gap-1">
             <li>
                 @if ($paginator->onFirstPage())
-                    <span class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm text-soft" aria-disabled="true">
+                    <span class="inline-flex min-h-10 items-center rounded-control px-3 text-sm text-soft" aria-disabled="true">
                         Précédent
                     </span>
                 @else
                     <a
                         href="{{ $paginator->previousPageUrl() }}"
                         rel="prev"
-                        class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm text-ink transition hover:bg-subtle"
+                        class="inline-flex min-h-10 items-center rounded-control px-3 text-sm text-ink transition hover:bg-subtle"
                     >
                         Précédent
                     </a>
@@ -47,7 +47,7 @@
                             @if ($page === $paginator->currentPage())
                                 <span
                                     aria-current="page"
-                                    class="numeric inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg bg-brand-600 px-3 text-sm font-medium text-white"
+                                    class="numeric inline-flex min-h-10 min-w-10 items-center justify-center rounded-control bg-brand-600 px-3 text-sm font-medium text-white"
                                 >
                                     {{ $page }}
                                 </span>
@@ -55,7 +55,7 @@
                                 <a
                                     href="{{ $url }}"
                                     aria-label="Page {{ $page }}"
-                                    class="numeric inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg px-3 text-sm text-ink transition hover:bg-subtle"
+                                    class="numeric inline-flex min-h-10 min-w-10 items-center justify-center rounded-control px-3 text-sm text-ink transition hover:bg-subtle"
                                 >
                                     {{ $page }}
                                 </a>
@@ -70,12 +70,12 @@
                     <a
                         href="{{ $paginator->nextPageUrl() }}"
                         rel="next"
-                        class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm text-ink transition hover:bg-subtle"
+                        class="inline-flex min-h-10 items-center rounded-control px-3 text-sm text-ink transition hover:bg-subtle"
                     >
                         Suivant
                     </a>
                 @else
-                    <span class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm text-soft" aria-disabled="true">
+                    <span class="inline-flex min-h-10 items-center rounded-control px-3 text-sm text-soft" aria-disabled="true">
                         Suivant
                     </span>
                 @endif

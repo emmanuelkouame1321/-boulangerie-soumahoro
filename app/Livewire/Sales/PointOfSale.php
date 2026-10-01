@@ -4,44 +4,33 @@ declare(strict_types=1);
 
 namespace App\Livewire\Sales;
 
+use App\Domain\Inventory\StockService;
+use App\Domain\Sales\SalesService;
+use App\Domain\Sites\BakeryContext;
+use App\Enums\ProductType;
+use App\Exceptions\EmptySaleException;
+use App\Exceptions\InsufficientStockException;
+use App\Models\Bakery;
+use App\Models\Product;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Component;
 
 /**
- * Caisse (POS) — écran plein de la charte caisse.
+ * Caisse (POS) — ventes au comptoir (cahier §14).
  *
- * Cette étape livre l'interface de caisse conforme au prototype. La
- * persistance et les règles de vente (déduction du stock produits finis,
- * idempotence, clôture journalière) appartiennent au domaine Ventes
- * (`App\Domain\Sales`, Phase 5). Le catalogue ci-dessous est un jeu de
- * démonstration en attendant le modèle `Product` (Phase 1.4).
+ * Le composant porte l'état du panier et appelle `SalesService` : la règle
+ * de vente (déduction du stock produits finis, idempotence) reste dans le
+ * domaine. Le catalogue provient des produits finis du site courant.
  */
 final class PointOfSale extends Component
 {
-    /**
-     * Catalogue de démonstration (remplacé par le modèle Product en Phase 1.4).
-     *
-     * @var list<array{sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string}>
-     */
-    private const CATALOG = [
-        ['sku' => 'SKU-BAGUETTE', 'name' => 'Baguette', 'description' => 'Pain traditionnel', 'price' => 500, 'stock' => 86, 'category' => 'Pains', 'emoji' => '🥖'],
-        ['sku' => 'SKU-PAIN-COMPLET', 'name' => 'Pain complet', 'description' => 'Farine complète', 'price' => 700, 'stock' => 34, 'category' => 'Pains', 'emoji' => '🍞'],
-        ['sku' => 'SKU-CROISSANT', 'name' => 'Croissant', 'description' => 'Beurre', 'price' => 800, 'stock' => 42, 'category' => 'Viennoiseries', 'emoji' => '🥐'],
-        ['sku' => 'SKU-PAIN-CHOCO', 'name' => 'Pain au chocolat', 'description' => 'Chocolat', 'price' => 900, 'stock' => 18, 'category' => 'Viennoiseries', 'emoji' => '🥐'],
-        ['sku' => 'SKU-CAKE-NATURE', 'name' => 'Cake nature', 'description' => 'Format familial', 'price' => 3500, 'stock' => 12, 'category' => 'Pâtisserie', 'emoji' => '🍰'],
-        ['sku' => 'SKU-GATEAU-CHOCO', 'name' => 'Gâteau chocolat', 'description' => 'Part 6 personnes', 'price' => 12000, 'stock' => 7, 'category' => 'Pâtisserie', 'emoji' => '🍰'],
-        ['sku' => 'SKU-SANDWICH', 'name' => 'Sandwich poulet', 'description' => 'Poulet & crudités', 'price' => 2500, 'stock' => 16, 'category' => 'Sandwichs', 'emoji' => '🥪'],
-        ['sku' => 'SKU-PIZZA', 'name' => 'Pizza individuelle', 'description' => 'Tomate & fromage', 'price' => 2500, 'stock' => 9, 'category' => 'Plats', 'emoji' => '🍕'],
-        ['sku' => 'SKU-EAU-50', 'name' => 'Eau 50cl', 'description' => 'Boisson', 'price' => 500, 'stock' => 112, 'category' => 'Boissons', 'emoji' => '💧'],
-        ['sku' => 'SKU-JUS-ORANGE', 'name' => 'Jus naturel', 'description' => 'Orange', 'price' => 1000, 'stock' => 27, 'category' => 'Boissons', 'emoji' => '🧃'],
-    ];
-
     public string $search = '';
 
     public string $activeCategory = 'Toutes';
 
-    /** @var list<array{sku: string, name: string, price: int, qty: int}> */
+    /** @var list<array{product_id: int, sku: string, name: string, price: int, qty: int}> */
     public array $cart = [];
 
     public bool $paymentOpen = false;
@@ -51,50 +40,59 @@ final class PointOfSale extends Component
         $this->activeCategory = $category;
     }
 
-    public function addToCart(string $sku): void
+    public function addToCart(int $productId): void
     {
-        $product = $this->findProduct($sku);
+        $product = $this->catalog()->firstWhere('id', $productId);
 
         if ($product === null) {
             return;
         }
 
+        $available = $this->availableFor($product);
+
         foreach ($this->cart as $index => $line) {
-            if ($line['sku'] === $sku) {
-                if ($line['qty'] >= $product['stock']) {
-                    $this->dispatch('notify', message: 'Stock insuffisant pour « '.$product['name'].' »');
+            if ($line['product_id'] === $productId) {
+                if ($line['qty'] >= $available) {
+                    $this->dispatch('notify', message: 'Stock insuffisant pour « '.$product->name.' »');
 
                     return;
                 }
 
                 $this->cart[$index]['qty']++;
-                $this->dispatch('notify', message: $product['name'].' ajouté au panier');
+                $this->dispatch('notify', message: $product->name.' ajouté au panier');
 
                 return;
             }
         }
 
+        if ($available <= 0) {
+            $this->dispatch('notify', message: 'Stock épuisé pour « '.$product->name.' »');
+
+            return;
+        }
+
         $this->cart[] = [
-            'sku' => $sku,
-            'name' => $product['name'],
-            'price' => $product['price'],
+            'product_id' => $product->getKey(),
+            'sku' => $product->sku,
+            'name' => $product->name,
+            'price' => (int) $product->sale_price,
             'qty' => 1,
         ];
 
-        $this->dispatch('notify', message: $product['name'].' ajouté au panier');
+        $this->dispatch('notify', message: $product->name.' ajouté au panier');
     }
 
-    public function changeQuantity(string $sku, int $delta): void
+    public function changeQuantity(int $productId, int $delta): void
     {
         foreach ($this->cart as $index => $line) {
-            if ($line['sku'] !== $sku) {
+            if ($line['product_id'] !== $productId) {
                 continue;
             }
 
             $quantity = $line['qty'] + $delta;
 
             if ($quantity <= 0) {
-                $this->removeItem($sku);
+                $this->removeItem($productId);
 
                 return;
             }
@@ -105,11 +103,11 @@ final class PointOfSale extends Component
         }
     }
 
-    public function removeItem(string $sku): void
+    public function removeItem(int $productId): void
     {
         $this->cart = array_values(array_filter(
             $this->cart,
-            static fn (array $line): bool => $line['sku'] !== $sku
+            static fn (array $line): bool => $line['product_id'] !== $productId
         ));
     }
 
@@ -129,9 +127,17 @@ final class PointOfSale extends Component
         $this->paymentOpen = false;
     }
 
-    public function validatePayment(string $method): void
+    public function validatePayment(string $method, SalesService $sales, BakeryContext $context): void
     {
         if (! array_key_exists($method, config('boulangerie.payment_methods', []))) {
+            return;
+        }
+
+        $bakery = $this->resolveBakery($context);
+
+        if ($bakery === null) {
+            $this->dispatch('notify', message: 'Aucun site actif pour encaisser');
+
             return;
         }
 
@@ -141,25 +147,91 @@ final class PointOfSale extends Component
             return;
         }
 
-        // TODO(Phase 5) : appeler App\Domain\Sales\SalesService::record() —
-        // déduction du stock produits finis, idempotence, clôture journalière.
-        $reference = 'VTE-'.now()->format('Ymd').'-'.strtoupper(Str::random(4));
+        $lines = array_map(static fn (array $line): array => [
+            'product_id' => $line['product_id'],
+            'quantity' => $line['qty'],
+            'unit_price' => $line['price'],
+        ], $this->cart);
+
+        try {
+            $sale = $sales->record(
+                bakery: $bakery,
+                lines: $lines,
+                paymentMethod: $method,
+                user: auth()->user() instanceof User ? auth()->user() : null,
+            );
+        } catch (InsufficientStockException|EmptySaleException $exception) {
+            $this->dispatch('notify', message: $exception->getMessage());
+
+            return;
+        }
 
         $this->cart = [];
         $this->paymentOpen = false;
 
-        $this->dispatch('notify', message: 'Vente '.$reference.' validée');
+        $this->dispatch('notify', message: 'Vente '.$sale->reference.' validée');
     }
 
     public function render(): View
     {
+        $products = $this->filteredProducts();
+
         return view('livewire.sales.point-of-sale', [
             'categories' => $this->categories(),
-            'products' => $this->filteredProducts(),
+            'products' => $products,
             'subtotal' => $this->subtotal(),
             'itemCount' => $this->itemCount(),
             'paymentMethods' => config('boulangerie.payment_methods', []),
         ]);
+    }
+
+    /**
+     * @return Collection<int, Product>
+     */
+    private function catalog(): Collection
+    {
+        return Product::query()
+            ->active()
+            ->where('type', ProductType::FinishedGood->value)
+            ->with('category')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return list<array{id: int, sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string}>
+     */
+    private function filteredProducts(): array
+    {
+        $needle = mb_strtolower(trim($this->search));
+        $bakery = $this->resolveBakery(app(BakeryContext::class));
+
+        $rows = [];
+
+        foreach ($this->catalog() as $product) {
+            $category = $this->categoryName($product);
+
+            if ($this->activeCategory !== 'Toutes' && $category !== $this->activeCategory) {
+                continue;
+            }
+
+            if ($needle !== '' && ! str_contains(mb_strtolower($product->name.' '.$product->sku), $needle)) {
+                continue;
+            }
+
+            $rows[] = [
+                'id' => (int) $product->getKey(),
+                'sku' => (string) $product->sku,
+                'name' => (string) $product->name,
+                'description' => (string) ($product->description ?? ''),
+                'price' => (int) $product->sale_price,
+                'stock' => $bakery !== null ? (int) round((float) app(StockService::class)->physical($product, $bakery)) : 0,
+                'category' => $category,
+                'emoji' => $this->emoji($product),
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -169,50 +241,50 @@ final class PointOfSale extends Component
     {
         $categories = ['Toutes'];
 
-        foreach (self::CATALOG as $product) {
-            if (! in_array($product['category'], $categories, true)) {
-                $categories[] = $product['category'];
+        foreach ($this->catalog() as $product) {
+            $category = $this->categoryName($product);
+
+            if (! in_array($category, $categories, true)) {
+                $categories[] = $category;
             }
         }
 
         return $categories;
     }
 
-    /**
-     * @return list<array{sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string}>
-     */
-    private function filteredProducts(): array
+    private function categoryName(Product $product): string
     {
-        $needle = mb_strtolower(trim($this->search));
+        $name = data_get($product, 'category.name');
 
-        return array_values(array_filter(
-            self::CATALOG,
-            function (array $product) use ($needle): bool {
-                if ($this->activeCategory !== 'Toutes' && $product['category'] !== $this->activeCategory) {
-                    return false;
-                }
-
-                if ($needle === '') {
-                    return true;
-                }
-
-                return str_contains(mb_strtolower($product['name'].' '.$product['sku'].' '.$product['description']), $needle);
-            }
-        ));
+        return is_string($name) && $name !== '' ? $name : 'Autres';
     }
 
-    /**
-     * @return array{sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string}|null
-     */
-    private function findProduct(string $sku): ?array
+    private function emoji(Product $product): string
     {
-        foreach (self::CATALOG as $product) {
-            if ($product['sku'] === $sku) {
-                return $product;
-            }
+        return match (data_get($product, 'category.code')) {
+            'bread' => '🥖',
+            'pastry' => '🥐',
+            'cake' => '🍰',
+            'drink' => '🧃',
+            'sandwich' => '🥪',
+            default => '🍞',
+        };
+    }
+
+    private function availableFor(Product $product): int
+    {
+        $bakery = $this->resolveBakery(app(BakeryContext::class));
+
+        if ($bakery === null) {
+            return 0;
         }
 
-        return null;
+        return (int) round((float) app(StockService::class)->physical($product, $bakery));
+    }
+
+    private function resolveBakery(BakeryContext $context): ?Bakery
+    {
+        return $context->current() ?? $context->availableBakeries()->first();
     }
 
     private function subtotal(): int

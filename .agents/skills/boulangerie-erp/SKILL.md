@@ -1,6 +1,6 @@
 ---
 name: boulangerie-erp
-description: Conventions de développement de l'ERP Boulangerie Soumahoro (Laravel 12, Blade + Livewire 4, Tailwind 4, Spatie Permission). À charger avant toute modification de ce dépôt pour respecter les règles métier, l'architecture par services et le design system.
+description: Conventions de développement de l'ERP Boulangerie Soumahoro (Laravel 12, Blade + Livewire 4, Tailwind 4, Spatie Permission). À charger avant toute modification de ce dépôt pour respecter les règles métier, l'architecture par services et la charte graphique BakeryOS.
 ---
 
 # Skill — ERP Boulangerie Soumahoro
@@ -16,12 +16,17 @@ migration, écran, composant UI.
 2. `ROADMAP.md` — phase active
 3. `docs/ARCHITECTURE.md` — couches et motifs obligatoires
 4. Le paragraphe correspondant du `cahier_des_charges_gestion_boulangerie.md`
-5. L'écran ou le composant correspondant dans
-   `BakeryOS – Prototype (charte caisse).html` (charte visuelle)
+5. `docs/CHARTE.md` — contrat visuel (tokens, composants, interdits)
+6. L'écran ou le composant correspondant dans
+   `BakeryOS – Prototype (charte caisse).html`
 
 ## Règles de code à appliquer sans exception
 
 - `declare(strict_types=1);` en tête de chaque fichier PHP applicatif.
+- Aucune couleur, rayon ou ombre en dur : uniquement les tokens de
+  `docs/CHARTE.md` / `resources/css/app.css`. `composer charte` doit
+  rester vert (il échoue sur `bg-red-500`, `rounded-[…]`, `shadow-sm`,
+  `bg-white`, un `#hex`, etc.).
 - Toute règle métier va dans `app/Domain/<Module>/`, jamais dans un
   contrôleur, un composant Livewire ou une vue.
 - Toute écriture de stock passe par `App\Domain\Inventory\StockMovementService`.
@@ -29,8 +34,6 @@ migration, écran, composant UI.
   clé d'idempotence.
 - Les montants sont des entiers (FCFA) ou `decimal`, jamais des `float`.
 - Les montants et quantités s'affichent via `App\Support\Format`.
-- Aucune couleur, aucun rayon, aucune ombre en dur : uniquement les tokens
-  de `resources/css/app.css`.
 - Les statuts s'affichent via `<x-ui.status-badge />` — jamais une couleur
   seule.
 - Les libellés métier viennent de `config/boulangerie.php`.
@@ -40,7 +43,8 @@ migration, écran, composant UI.
 ## Commandes à lancer avant de conclure
 
 ```bash
-composer ci     # analyse + lint + test
+composer charte  # vérifie les tokens de la charte dans les vues
+composer ci      # analyse + lint + charte + test
 ```
 
 ## Tests à écrire
