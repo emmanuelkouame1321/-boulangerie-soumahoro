@@ -292,3 +292,34 @@ CheckBatchExpiry    → job planifié (boulangerie:expiry-check, hourlyAt(5)) : 
   côté serveur ; les permissions sont portées par `LossRecordPolicy`
   (`loss.view` / `loss.create`) et `StockAlertPolicy` (`alert.view` /
   `alert.acknowledge`).
+
+## 16. Module Grossistes & ristournes
+
+```
+WholesalerController       → fiche §12.1, statistiques (quantité, CA, régularité)
+WholesalerRebateController → paliers administrables, calcul, validation, versement
+WholesalerRebateService    → aggregate() / tierFor() / compute() / validate() / settle()
+```
+
+- **Fiche reliée au compte client.** `wholesalers.customer_id` rattache la
+  fiche au client utilisé dans les ventes grossistes, ce qui permet de
+  calculer la ristourne sur l'historique réel sans table de ventes
+  parallèle. Voir ADR-018.
+- **Paliers administrables.** `wholesaler_rules` porte la base
+  (`RebateBasis`), la famille optionnelle, le seuil bas, le seuil haut et
+  le taux. Aucun seuil n'est codé en dur : ajouter un palier en base
+  change le résultat sans déploiement.
+- **Formule du cahier §37.5.** `WholesalerRebateService` agrège le CA
+  grossiste (`sale_items` joints à `sales` de type `wholesale` validées)
+  de l'exercice, sélectionne le palier, puis applique
+  `Decimal::applyPercent(revenue, rate)`. La quantité et le CA restent en
+  BCMath ; les montants sont des entiers FCFA.
+- **Workflow figé à la validation.** Unique par grossiste et par exercice
+  (`[wholesaler_id, period_year]`) ; théorique → validée → versée. Une
+  ristourne validée ou versée n'est plus recalculée
+  (`RebateAlreadyValidatedException`) et un palier se désactive plutôt
+  que de se supprimer (§53-11).
+- Les écrans `/wholesalers` et `/rebates` sont paginés et filtrables côté
+  serveur ; les permissions sont portées par `WholesalerPolicy`
+  (`wholesaler.view` / `wholesaler.manage`) et `WholesalerRebatePolicy`
+  (`rebate.view` / `rebate.manage`).

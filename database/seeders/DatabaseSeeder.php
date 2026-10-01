@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             StockSeeder::class,
             PaymentMethodSeeder::class,
             CustomerSeeder::class,
+            WholesalerSeeder::class,
         ]);
     }
 }

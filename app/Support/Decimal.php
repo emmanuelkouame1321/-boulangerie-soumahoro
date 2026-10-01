@@ -107,4 +107,21 @@ final class Decimal
 
         return (int) bcadd($raw, '0.5', 0);
     }
+
+    /**
+     * Applique un pourcentage à un montant, arrondi au franc le plus
+     * proche. Le taux est exprimé en pourcentage (2,5 et non 0,025).
+     */
+    public static function applyPercent(int $amount, int|float|string $percent): int
+    {
+        $rate = self::normalize($percent);
+
+        if ($amount <= 0 || bccomp($rate, '0', 6) <= 0) {
+            return 0;
+        }
+
+        $raw = bcdiv(bcmul((string) $amount, $rate, 6), '100', 6);
+
+        return (int) bcadd($raw, '0.5', 0);
+    }
 }

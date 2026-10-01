@@ -70,6 +70,8 @@ return [
                 'customer.manage',
                 'wholesaler.view',
                 'wholesaler.manage',
+                'rebate.view',
+                'rebate.manage',
                 'loss.view',
                 'loss.create',
                 'alert.view',
@@ -122,6 +124,7 @@ return [
         'wholesaler.view',
         'wholesaler.manage',
         'rebate.view',
+        'rebate.manage',
         'loss.view',
         'loss.create',
         'employee.view',
@@ -234,6 +237,57 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Grossistes (cahier §12)
+    |--------------------------------------------------------------------------
+    */
+    'wholesaler' => [
+        // Grille de prix applicable (cahier §12.1). Le prix effectif reste
+        // porté par le produit (`wholesale_price`).
+        'price_modes' => [
+            'wholesale' => 'Prix grossiste',
+            'contract' => 'Prix contractuel',
+        ],
+    ],
+
+    'wholesaler_conditions' => [
+        'cash' => 'Comptant',
+        'weekly' => 'Hebdomadaire',
+        'monthly' => 'Mensuel',
+        'credit' => 'À crédit',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ristournes annuelles (cahier §13)
+    |--------------------------------------------------------------------------
+    | Les paliers réels sont administrables (table `wholesaler_rules`) : ce
+    | bloc ne porte que la base par défaut et la liste fermée des critères.
+    | L'exemple du cahier (0–50 000 → 0 %, …) sert d'amorçage.
+    */
+    'rebate_bases' => [
+        'quantity' => 'Quantité annuelle',
+        'revenue' => "Chiffre d'affaires",
+        'family' => 'Famille de produits',
+        'combination' => 'Combinaison de critères',
+    ],
+
+    'rebate' => [
+        // Base de calcul retenue quand aucune règle n'est administrée.
+        'default_basis' => 'quantity',
+        // Base utilisée pour sélectionner le palier d'une règle
+        // « combinaison » (quantité + CA).
+        'combination_value' => 'revenue',
+        // Amorçage : paliers d'exemple du cahier §13.
+        'seed_rules' => [
+            ['min' => 0, 'max' => 50000, 'rate' => '0'],
+            ['min' => 50001, 'max' => 100000, 'rate' => '1'],
+            ['min' => 100001, 'max' => 200000, 'rate' => '2'],
+            ['min' => 200001, 'max' => null, 'rate' => '3'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | États métier (libellés + sémantique visuelle)
     |--------------------------------------------------------------------------
     | Le composant <x-ui.status-badge /> consomme exclusivement cette table.
@@ -283,6 +337,11 @@ return [
             'to_sell_soon' => ['label' => 'À écouler', 'tone' => 'warning'],
             'expired' => ['label' => 'Expiré', 'tone' => 'danger'],
             'depleted' => ['label' => 'Épuisé', 'tone' => 'neutral'],
+        ],
+        'rebate' => [
+            'projected' => ['label' => 'Théorique', 'tone' => 'info'],
+            'validated' => ['label' => 'Validée', 'tone' => 'success'],
+            'paid' => ['label' => 'Versée', 'tone' => 'success'],
         ],
     ],
 

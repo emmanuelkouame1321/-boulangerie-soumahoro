@@ -412,9 +412,36 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   `StockAlertPolicy` (`alert.view` / `alert.acknowledge`) ; 174 tests
   verts (624 assertions), Larastan, Pint et charte propres
 
-**Prochaine tâche : Phase 7 — grossistes et ristournes.** `wholesalers`,
- `wholesaler_rules`, `wholesaler_rebates`, `WholesalerRebateService`,
- fiches et écran de ristournes. Voir `ROADMAP.md`.
+**Phase 7 — grossistes et ristournes : terminée.**
+
+- Grossistes : `wholesalers` — fiche §12.1
+  (raison sociale, responsable, zone, grille de prix, quantité habituelle,
+  conditions de paiement, date d'adhésion) isolée par site, reliée à un
+  compte client (`customer_id`) pour rattacher l'historique de ventes
+- Règles administrables : `wholesaler_rules` — base `RebateBasis`
+  (quantité / CA / famille / combinaison), famille optionnelle, seuil bas
+  et haut, taux en pourcentage ; aucun seuil codé en dur
+- `App\Domain\Customers\WholesalerRebateService` :
+  `aggregate()` (quantités + CA des ventes `Wholesale` validées du compte
+  client, filtrable par famille), `tierFor()` / `matches()` (palier), et
+  `compute()` → `validate()` → `settle()`. Ristourne = base éligible ×
+  taux (`Decimal::applyPercent`), unique par grossiste et par exercice ;
+  une ristourne validée ou versée n'est plus recalculée
+  (`RebateAlreadyValidatedException`, §53-11)
+- Enums `RebateBasis`, `RebateStatus` (projected / validated / paid)
+- Écrans `/wholesalers` (liste, création, fiche avec statistiques,
+  modification) et `/rebates` (paliers administrables, calcul, validation,
+  versement, synthèse de l'exercice)
+- Composants `business/` : `wholesaler-summary`, `rebate-progress`
+- Policies `WholesalerPolicy` (`wholesaler.view` / `wholesaler.manage`),
+  `WholesalerRebatePolicy` (`rebate.view` / `rebate.manage`, ajoutée aux
+  permissions et au rôle sales-manager) ; seed `WholesalerSeeder`
+- 188 tests verts (665 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : Phase 8 — employés et paie.** `employees`,
+ `employee_contracts`, `payroll_periods`, `payroll_items`,
+ `payroll_payments`, `App\Domain\Payroll\PayrollService`, écrans Employés
+ et Paie. Voir `ROADMAP.md`.
 
 ### Repères utiles
 

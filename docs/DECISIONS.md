@@ -475,6 +475,53 @@ entrée qui la remplace.
 
 ---
 
+## ADR-018 — Grossistes et ristournes : paliers administrables, base CA
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §12 décrit une fiche grossiste complète et un
+  historique par client ; le §13 exige des ristournes configurables, dont
+  les seuils et taux « doivent être administrables », et le §37.5 résume
+  la formule à « ristourne = base éligible × taux applicable ». La
+  question §54-11 (règles exactes de ristourne) n'est pas tranchée.
+- **Décisions :**
+  1. **Une table grossiste dédiée, reliée au compte client.**
+     `wholesalers` porte la fiche §12.1 et un `customer_id` optionnel
+     (unique) vers `customers`. Les ventes grossistes existantes portent
+     déjà `customer_id` (ADR-016) : ce lien permet de calculer la
+     ristourne sur l'historique réel sans créer de table de ventes
+     parallèle ni modifier `sales`.
+  2. **Les paliers sont des données, pas du code.** `wholesaler_rules`
+     stocke base, famille éventuelle, seuil bas, seuil haut et taux en
+     pourcentage. Ajouter ou modifier un palier change le résultat sans
+     déploiement, ce qui satisfait le critère de la Phase 7.
+  3. **Le palier est choisi par la base, la ristourne porte sur le CA.**
+     Quel que soit le critère de sélection (quantité, CA, famille,
+     combinaison), la « base éligible » est le chiffre d'affaires
+     grossiste de l'exercice (filtré par famille le cas échéant) : on ne
+     multiplie pas une quantité par un pourcentage. Pour la base
+     « combinaison », seuil bas et haut s'appliquent simultanément à la
+     quantité et au CA.
+  4. **Trois états, historiques préservés.** `RebateStatus` =
+     théorique → validée → versée. Le recalcul met à jour tant que la
+     ristourne est théorique ; une ristourne validée ou versée est figée
+     (`RebateAlreadyValidatedException`) et une ristourne est unique par
+     grossiste et par exercice (`[wholesaler_id, period_year]`), §53-11.
+  5. **Un palier n'est jamais supprimé.** « Désactiver » un palier le
+     passe en `is_active = false` plutôt que de le supprimer : les
+     ristournes passées gardent leur référence.
+- **Justification :** la règle du cahier est reproduite telle quelle ; des
+  paliers en base couvrent les quatre critères demandés sans branche de
+  code spécifique ; réutiliser `customer_id` évite de dupliquer l'axe de
+  vente déjà livré en Phase 5.
+- **Conséquence :** l'hypothèse §54-11 retenue est « palier sur la base de
+  calcul, ristourne = CA éligible × taux », entièrement configurable. Les
+  retours et invendus grossistes (§54-8 et 9) resteront des opérations
+  compensatoires, sans influence sur la ristourne tant qu'ils ne sont pas
+  modélisés.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le
@@ -497,4 +544,5 @@ Tant qu'une question n'est pas tranchée :
 | Durée limite de vente | configurable par produit | à confirmer |
 | Règles de péremption | `expiry.conversion` + `expiry.soon_days` (ADR-017) | à confirmer |
 | Produits partiellement vendus | imputation FEFO, lot non obligatoire (ADR-017) | à confirmer |
+| Règles de ristourne | palier sur la base de calcul, ristourne = CA éligible × taux (ADR-018) | à confirmer |
 | Modes de paiement | espèces, mobile money, virement, autre | à confirmer |

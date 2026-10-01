@@ -4,7 +4,7 @@
 > la traiter en respectant `AGENTS.md`, la cocher, mettre à jour l'en-tête
 > de statut, puis passer à la suivante. Ne jamais sauter une phase.
 
-**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅ → Phase 6 terminée ✅**
+**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅ → Phase 6 terminée ✅ → Phase 7 terminée ✅**
 
 Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
@@ -297,21 +297,27 @@ identifiés, les invendus transformés en pertes selon la règle configurée.
 
 ---
 
-## Phase 7 — Grossistes et ristournes (MVP 13)
+## Phase 7 — Grossistes et ristournes (MVP 13) ✅
 
-- [ ] Migration `wholesalers`, `wholesaler_rules`, `wholesaler_rebates`
-- [ ] Fiche grossiste complète (zone, prix, quantité habituelle,
-      conditions de paiement, date d'adhésion)
-- [ ] `App\Domain\Customers\WholesalerRebateService` : paliers
-      configurables (quantité / CA / famille / combinaison)
-- [ ] Statistiques par grossiste (journalier, mensuel, annuel, évolution,
+- [x] Migration `wholesalers`, `wholesaler_rules`, `wholesaler_rebates`
+- [x] Fiche grossiste complète (zone, prix, quantité habituelle,
+      conditions de paiement, date d'adhésion) — reliée à un compte
+      client pour rattacher l'historique de ventes
+- [x] `App\Domain\Customers\WholesalerRebateService` : paliers
+      configurables (quantité / CA / famille / combinaison), base
+      éligible = CA grossiste de l'exercice, théorie → validation →
+      versement (historiques jamais écrasés)
+- [x] Statistiques par grossiste (quantité, CA annuel, commandes,
       taux de régularité)
-- [ ] Écrans fiche grossiste + ristournes (Design System §43, §44, §73)
-- [ ] Composants `WholesalerSummary`, `RebateProgress`
-- [ ] Tests : calcul de ristourne par palier, seuils modifiables
+- [x] Écrans fiche grossiste + ristournes (paliers administrables,
+      calcul, validation, versement)
+- [x] Composants `WholesalerSummary`, `RebateProgress`
+- [x] Tests : calcul de ristourne par palier, seuils modifiables,
+      base CA, idempotence par exercice, validation figée, permissions
 
-**Critère :** la ristourne est calculée depuis une règle administrable,
-sans modification de code.
+**Critère atteint :** la ristourne est calculée depuis une règle
+administrable (`wholesaler_rules`), sans modification de code — ajouter
+un palier en base suffit à changer le résultat.
 
 ---
 

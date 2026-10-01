@@ -21,6 +21,8 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitConversionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WholesalerController;
+use App\Http\Controllers\WholesalerRebateController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -180,8 +182,66 @@ Route::middleware('auth')->group(function (): void {
         ->name('customers.update')
         ->whereNumber('customer')
         ->middleware('permission:customer.manage');
-    Route::view('/wholesalers', 'wholesalers.index')->name('wholesalers.index')->middleware('permission:wholesaler.view');
-    Route::view('/rebates', 'rebates.index')->name('rebates.index')->middleware('permission:rebate.view');
+    // Ressources — grossistes (cahier §12).
+    Route::get('/wholesalers', [WholesalerController::class, 'index'])
+        ->name('wholesalers.index')
+        ->middleware('permission:wholesaler.view');
+
+    Route::get('/wholesalers/create', [WholesalerController::class, 'create'])
+        ->name('wholesalers.create')
+        ->middleware('permission:wholesaler.manage');
+
+    Route::post('/wholesalers', [WholesalerController::class, 'store'])
+        ->name('wholesalers.store')
+        ->middleware('permission:wholesaler.manage');
+
+    Route::get('/wholesalers/{wholesaler}', [WholesalerController::class, 'show'])
+        ->name('wholesalers.show')
+        ->whereNumber('wholesaler')
+        ->middleware('permission:wholesaler.view');
+
+    Route::get('/wholesalers/{wholesaler}/edit', [WholesalerController::class, 'edit'])
+        ->name('wholesalers.edit')
+        ->whereNumber('wholesaler')
+        ->middleware('permission:wholesaler.manage');
+
+    Route::put('/wholesalers/{wholesaler}', [WholesalerController::class, 'update'])
+        ->name('wholesalers.update')
+        ->whereNumber('wholesaler')
+        ->middleware('permission:wholesaler.manage');
+
+    // Ristournes annuelles (cahier §13).
+    Route::get('/rebates', [WholesalerRebateController::class, 'index'])
+        ->name('rebates.index')
+        ->middleware('permission:rebate.view');
+
+    Route::post('/rebates/rules', [WholesalerRebateController::class, 'storeRule'])
+        ->name('rebates.rules.store')
+        ->middleware('permission:rebate.manage');
+
+    Route::put('/rebates/rules/{rule}', [WholesalerRebateController::class, 'updateRule'])
+        ->name('rebates.rules.update')
+        ->whereNumber('rule')
+        ->middleware('permission:rebate.manage');
+
+    Route::delete('/rebates/rules/{rule}', [WholesalerRebateController::class, 'destroyRule'])
+        ->name('rebates.rules.destroy')
+        ->whereNumber('rule')
+        ->middleware('permission:rebate.manage');
+
+    Route::post('/rebates/compute', [WholesalerRebateController::class, 'compute'])
+        ->name('rebates.compute')
+        ->middleware('permission:rebate.manage');
+
+    Route::post('/rebates/{rebate}/validate', [WholesalerRebateController::class, 'validateRebate'])
+        ->name('rebates.validate')
+        ->whereNumber('rebate')
+        ->middleware('permission:rebate.manage');
+
+    Route::post('/rebates/{rebate}/settle', [WholesalerRebateController::class, 'settle'])
+        ->name('rebates.settle')
+        ->whereNumber('rebate')
+        ->middleware('permission:rebate.manage');
 
     // Ressources — fournisseurs (cahier §10).
     Route::get('/suppliers', [SupplierController::class, 'index'])
