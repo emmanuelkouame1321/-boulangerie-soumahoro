@@ -9,6 +9,8 @@
         description="Chaque entrée, sortie, vente ou ajustement est historisé. Aucun mouvement n’est jamais supprimé."
     >
         <x-slot:actions>
+            <x-ui.button variant="secondary" icon="download" :href="route('inventory.movements.export', array_merge(['format' => 'csv'], $exportQuery))">CSV</x-ui.button>
+            <x-ui.button variant="secondary" icon="download" :href="route('inventory.movements.export', array_merge(['format' => 'xls'], $exportQuery))">Excel</x-ui.button>
             <x-ui.button variant="secondary" icon="arrow-left" :href="route('inventory.index')">Retour au stock</x-ui.button>
         </x-slot:actions>
     </x-layout.page-header>

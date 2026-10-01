@@ -68,8 +68,9 @@ permission vérifiée côté serveur ; le Super-Admin accède à tout.
 - [x] Messages d'erreur en français (`lang/fr/`) sans fuite d'information
 - [x] Limitation des tentatives : 5 par compte + 20/min par IP
 - [~] Redirection par rôle après connexion — tout le monde arrive sur
-      `/dashboard` pour l'instant ; les tableaux de bord dédiés
-      (Super-Admin / Production / Vente) sont livrés en Phase 9
+      `/dashboard` ; les 3 tableaux de bord dédiés (Super-Admin /
+      Production / Vente) sont livrés en **Phase 9** et le contenu de
+      `/dashboard` s'adapte au rôle connecté
 - [x] Routes métier derrière le middleware `auth`
 
 **Critère atteint :** un visiteur non authentifié est redirigé vers
@@ -183,7 +184,7 @@ voient des menus différents ✅ ; les données sont isolées par site
 - [x] Écran Stocks : stock temps réel, seuils, statuts, ajustement motivé
       (Design System §23, §44)
 - [x] Écran Mouvements : historique filtrable, paginé (Design System §34) —
-      export différé en Phase 9
+      export CSV / Excel livré en Phase 9 (`/inventory/movements/export`)
 - [x] Composants `StockStatus`, `StockMovementBadge`, `ExpiryIndicator`
       (dossier `components/business/`)
 - [x] Tests : aucun stock négatif ; deux mouvements concurrents sur le
@@ -344,22 +345,25 @@ conservés).
 
 ---
 
-## Phase 9 — Charges, rapports, dashboards
+## Phase 9 — Charges, rapports, dashboards ✅
 
-- [ ] Migration `expense_categories`, `expenses`
-- [ ] Écran Charges avec catégories configurables
-- [ ] `App\Domain\Reporting\ReportingService`
-- [ ] Rapports : production, stock, achats, ventes, pertes, grossistes,
+- [x] Migration `expense_categories`, `expenses`
+- [x] Écran Charges avec catégories configurables (désactivation,
+      jamais de suppression)
+- [x] `App\Domain\Reporting\ReportingService`
+- [x] Rapports : production, stock, achats, ventes, pertes, grossistes,
       charges, paie (cahier §33)
-- [ ] Exports PDF / XLSX / CSV (Design System §84)
-- [ ] Les 3 dashboards réels (Super-Admin, Production, Vente —
+- [x] Exports sans dépendance : CSV natif, SpreadsheetML 2003 (`.xls`)
+      et vue imprimable « Imprimer → PDF » (Design System §84 —
+      voir ADR-020), y compris le grand livre des mouvements
+- [x] Les 3 dashboards réels (Super-Admin, Production, Vente —
       Design System §15, §16, §17)
-- [ ] Sélecteur de période (Design System §83)
-- [ ] Graphiques (Design System §39)
-- [ ] Tests : chaque rapport répond aux questions du cahier §55
+- [x] Sélecteur de période (Design System §83)
+- [x] Graphiques (Design System §39, `x-ui.bar-chart`)
+- [x] Tests : chaque rapport répond aux questions du cahier §55
 
-**Critère :** le Super-Admin répond aux 17 questions du cahier §55 sans
-intervention technique.
+**Critère atteint :** le Super-Admin répond aux 17 questions du cahier
+§55 sans intervention technique (test automatisé sur les 17 questions).
 
 ---
 

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Http\Controllers\BakeryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DayClosingController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LossController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockAdjustmentController;
@@ -43,7 +46,7 @@ require __DIR__.'/auth.php';
 Route::middleware('auth')->group(function (): void {
     Route::redirect('/', '/dashboard');
 
-    Route::view('/dashboard', 'dashboard.index')->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Caisse (POS) — plein écran, hors gabarit applicatif.
     Route::view('/caisse', 'sales.pos')->name('pos')->middleware('permission:pos.open');
@@ -77,6 +80,10 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/inventory/movements', [StockMovementController::class, 'index'])
         ->name('inventory.movements')
+        ->middleware('permission:inventory.view');
+
+    Route::get('/inventory/movements/export', [StockMovementController::class, 'export'])
+        ->name('inventory.movements.export')
         ->middleware('permission:inventory.view');
 
     Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])
@@ -328,10 +335,52 @@ Route::middleware('auth')->group(function (): void {
         ->name('payroll.pay')
         ->whereNumber('period')
         ->middleware('permission:payroll.manage');
-    Route::view('/expenses', 'expenses.index')->name('expenses.index')->middleware('permission:expense.view');
+    // Ressources — charges (cahier §18).
+    Route::get('/expenses', [ExpenseController::class, 'index'])
+        ->name('expenses.index')
+        ->middleware('permission:expense.view');
+
+    Route::get('/expenses/create', [ExpenseController::class, 'create'])
+        ->name('expenses.create')
+        ->middleware('permission:expense.manage');
+
+    Route::post('/expenses', [ExpenseController::class, 'store'])
+        ->name('expenses.store')
+        ->middleware('permission:expense.manage');
+
+    Route::get('/expenses/{expense}/edit', [ExpenseController::class, 'edit'])
+        ->name('expenses.edit')
+        ->whereNumber('expense')
+        ->middleware('permission:expense.manage');
+
+    Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])
+        ->name('expenses.update')
+        ->whereNumber('expense')
+        ->middleware('permission:expense.manage');
+
+    Route::post('/expenses/categories', [ExpenseController::class, 'storeCategory'])
+        ->name('expenses.categories.store')
+        ->middleware('permission:expense.manage');
+
+    Route::post('/expenses/categories/{category}/deactivate', [ExpenseController::class, 'deactivateCategory'])
+        ->name('expenses.categories.deactivate')
+        ->whereNumber('category')
+        ->middleware('permission:expense.manage');
 
     // Analyse
-    Route::view('/reports', 'reports.index')->name('reports.index')->middleware('permission:report.view');
+    // Rapports (cahier §33, §55).
+    Route::get('/reports', [ReportsController::class, 'index'])
+        ->name('reports.index')
+        ->middleware('permission:report.view');
+
+    Route::get('/reports/{kind}/export', [ReportsController::class, 'export'])
+        ->name('reports.export')
+        ->middleware('permission:report.export');
+
+    Route::get('/reports/{kind}', [ReportsController::class, 'show'])
+        ->name('reports.show')
+        ->whereIn('kind', ['sales', 'stock', 'production', 'losses', 'purchases', 'wholesalers', 'expenses', 'payroll'])
+        ->middleware('permission:report.view');
     Route::get('/notifications', [StockAlertController::class, 'index'])
         ->name('notifications.index')
         ->middleware('permission:alert.view');

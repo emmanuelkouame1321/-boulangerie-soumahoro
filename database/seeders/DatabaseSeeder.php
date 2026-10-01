@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             WholesalerSeeder::class,
             EmployeeSeeder::class,
+            ExpenseCategorySeeder::class,
         ]);
     }
 }

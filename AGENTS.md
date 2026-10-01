@@ -463,10 +463,43 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   permissions) ; seed `EmployeeSeeder`
 - 204 tests verts (703 assertions), Larastan, Pint et charte propres
 
-**Prochaine tâche : Phase 9 — charges, rapports et dashboards.**
- `expense_categories`, `expenses`, `App\Domain\Reporting\ReportingService`,
- rapports §33, exports, les 3 dashboards réels et les graphiques. Voir
- `ROADMAP.md`.
+**Phase 9 — charges, rapports et dashboards : terminée.**
+
+- Charges : `expense_categories` (12 entrées depuis
+  `config('boulangerie.expense_categories')`, désactivables, jamais
+  supprimées) et `expenses` (référence `EXP-{Ym}-{NNNN}`, montant FCFA,
+  `spent_on`, mode de paiement, pièce jointe, commentaire)
+- `App\Domain\Expenses\ExpenseService` : `record()` (transaction +
+  référence), `createCategory()`, `deactivateCategory()`
+- `App\Domain\Reporting\ReportingService` : agrégats SQL pour les 8
+  rapports §33 (ventes, production, stock, achats, pertes, grossistes,
+  charges, paie) + `questions()` → **17 réponses du cahier §55** ;
+  `$bakeryId = null` = consolidation tous sites (Super-Admin)
+- Exports **sans dépendance** (ADR-020) : CSV natif (BOM UTF-8,
+  séparateur `;`), SpreadsheetML 2003 (`.xls`, `<Workbook>`), vue
+  imprimable `reports.print` (« Imprimer → PDF ») via
+  `App\Support\ReportExport`
+- Écrans `/expenses` (liste, recherche, période, catégorie, totaux ;
+  catégories administrables), `/expenses/create`,
+  `/expenses/{expense}/edit`, `/reports` (sélecteur de période + site
+  Super-Admin, résumé, 17 questions §55, tendance 14 j),
+  `/reports/{kind}` (8 kinds) avec exports
+- Dashboards réels `/dashboard` : mode par rôle (Super-Admin consolidé
+  avec CA par site, Production avec alertes, Vente avec top produits),
+  tendance 7 j (`x-ui.bar-chart`)
+- Export du grand livre `/inventory/movements/export` (CSV / Excel,
+  mêmes filtres que l'écran, permission `inventory.view`)
+- Permissions : `expense.manage` et `report.export` ajoutées au
+  catalogue ; `expense.view` et `report.view` (déjà déclarées) câblées
+  sur les routes via middleware `permission:` — aucune vue n'est
+  accessible aux rôles standard par défaut ; policy `ExpensePolicy` ;
+  seed `ExpenseCategorySeeder`
+- 218 tests verts (790 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : Phase 10 — optimisation, sécurité et qualité.**
+ notifications/email, queue, cache, `audit_logs` + écran Audit, 2FA,
+ transferts inter-sites, responsive, WCAG, documentation d'exploitation.
+ Voir `ROADMAP.md`.
 
 ### Repères utiles
 

@@ -569,6 +569,63 @@ entrée qui la remplace.
 
 ---
 
+## ADR-020 — Charges et reporting : agrégats SQL, exports sans dépendance
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §33 demande huit rapports (ventes,
+  production, stock, achats, pertes, grossistes, charges, paie) et §55
+  impose que le Super-Admin réponde à 17 questions précises « sans
+  intervention technique ». Le Design System §84 prévoit des exports
+  PDF / XLSX / CSV. Les questions §54-16 (règles fiscales) et §54-18
+  (impression de documents) ne sont pas encore tranchées, et le projet
+  est livré en autonomie : chaque dépendance lourde (dompdf,
+  PhpSpreadsheet) est un risque de build et de maintenance.
+- **Décisions :**
+  1. **Un service d'agrégation unique.** `App\Domain\Reporting\
+     ReportingService` calcule les huit rapports par requêtes SQL
+     groupées (aucune donnée dénormalisée, aucun cache) et expose
+     `questions()` qui produit les 17 réponses §55. Chaque méthode prend
+     un `?int $bakeryId` : renseigné = un site, `null` = consolidation
+     de tous les sites (réservée au Super-Admin).
+  2. **Les exports n'ont aucune dépendance.** Trois formats natifs via
+     `App\Support\ReportExport` : CSV (UTF-8 avec BOM, séparateur `;`
+     pour Excel francophone), SpreadsheetML 2003 (XML `<Workbook>`
+     ouvert par Excel sous `.xls`) et une vue imprimable
+     `reports.print` avec `@media print` pour « Imprimer → PDF ».
+     Aucun package tiers installé (décision explicite du propriétaire).
+     Le même `ReportExport` sert l'export du grand livre des mouvements
+     (engagement du ROADMAP Phase 2 reporté en Phase 9).
+  3. **Les dates de période sont filtrées en `whereDate()`.** Les
+     colonnes `date` sont stockées avec une heure résiduelle selon le
+     moteur : un `whereBetween` sur une chaîne laisserait échapper des
+     lignes en fin de journée.
+  4. **Les catégories de charges sont configurables et
+     désactivables.** Les 12 catégories sont amorcées depuis
+     `config('boulangerie.expense_categories')` ; une catégorie qui a
+     servi à enregistrer une charge se désactive
+     (`ExpenseService::deactivateCategory`) et n'est jamais supprimée,
+     conformément au §53-11.
+  5. **L'export est une permission distincte.** `report.view` ouvre la
+     consultation, `report.export` les téléchargements (middleware
+     `permission:` sur `/reports/{kind}/export`) ; `report.export` est
+     accordée au seul Super-Admin par défaut.
+  6. **Un dashboard par mode de fonctionnement.** Le contrôleur choisit
+     la vue depuis le rôle connecté : Super-Admin (consolidé + CA par
+     site), Production (alertes, écarts), Vente (top produits,
+     encaissements) — Design System §15-§17.
+- **Justification :** les agrégats SQL évitent toute table de résumé à
+  maintenir hors synchro et rendent les 17 questions §55 testables en
+  base ; les trois formats d'export couvrent Excel, l'analyse de données
+  et l'impression sans introduire de dépendance non auditable.
+- **Conséquence :** un futur export PDF de qualité (tableaux multi-pages,
+  en-têtes répétés) demandera soit d'affiner `reports.print`, soit
+  d'ajouter une dépendance — décision à reprendre en ADR. Les rapports
+  sont recalculés à chaque affichage : si le volume justifie un cache,
+  il viendra en Phase 10 (queue/cache) sans changer l'API du service.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le

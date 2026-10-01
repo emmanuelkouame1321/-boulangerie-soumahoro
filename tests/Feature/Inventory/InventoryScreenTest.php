@@ -73,6 +73,31 @@ class InventoryScreenTest extends TestCase
             ->assertSee('Entrée fournisseur');
     }
 
+    public function test_the_movements_ledger_can_be_exported(): void
+    {
+        $bakery = Bakery::factory()->create();
+        $product = $this->product();
+
+        app(StockMovementService::class)->apply($bakery, $product, StockMovementType::SupplierIn, 12);
+
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('inventory.movements.export', ['format' => 'csv']))
+            ->assertOk()
+            ->assertDownload('mouvements-de-stock.csv');
+
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('inventory.movements.export', ['format' => 'xls']))
+            ->assertOk()
+            ->assertSee('<Workbook', false);
+    }
+
+    public function test_the_movements_export_requires_the_inventory_permission(): void
+    {
+        $this->actingAs($this->user(Role::Cashier))
+            ->get(route('inventory.movements.export'))
+            ->assertForbidden();
+    }
+
     public function test_super_admin_can_adjust_a_stock(): void
     {
         $bakery = Bakery::factory()->create();

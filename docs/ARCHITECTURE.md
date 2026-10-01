@@ -45,7 +45,8 @@ App\Domain\Sales\SalesService                ← ventes particuliers et grossist
 App\Domain\Sales\DayClosingService           ← clôture journalière, écarts
 App\Domain\Customers\WholesalerRebateService ← ristournes par palier
 App\Domain\Payroll\PayrollService
-App\Domain\Reporting\ReportingService
+App\Domain\Expenses\ExpenseService         ← enregistrement des charges
+App\Domain\Reporting\ReportingService      ← agrégats des 8 rapports + §55
 ```
 
 ## 3 bis. Convention Livewire
@@ -354,3 +355,41 @@ PayrollService     → openPeriod() / generate() / updateItem() / validate() / p
   serveur ; les permissions sont portées par `EmployeePolicy`
   (`employee.view` / `employee.manage`) et `PayrollPeriodPolicy`
   (`payroll.view` / `payroll.manage`).
+
+## 18. Module Charges & reporting
+
+```
+ExpenseController    → charges : liste, saisie, modification, catégories
+ReportsController    → /reports, /reports/{kind}, /reports/{kind}/export
+DashboardController  → /dashboard (3 modes selon le rôle)
+ExpenseService       → record() / createCategory() / deactivateCategory()
+ReportingService     → sales() production() stock() purchases() losses()
+                       wholesalers() expenses() payroll() questions()
+ReportExport (Support) → csv() / xls() — aucun package tiers
+```
+
+- **Agrégats SQL, pas de table de résumé.** `ReportingService` calcule
+  huit rapports à la volée ; chaque méthode prend un `?int $bakeryId` :
+  renseigné = un site, `null` = consolidation tous sites (Super-Admin).
+  `questions()` produit les **17 réponses du cahier §55**, testées en
+  base. Voir ADR-020.
+- **Filtres de période en `whereDate()`.** Les colonnes `date` sont
+  stockées avec une heure résiduelle selon le moteur : un `whereBetween`
+  sur une chaîne laisserait échapper des lignes en fin de journée.
+- **Charges : catégorie désactivable, jamais supprimée.**
+  `ExpenseService::deactivateCategory()` marque `is_active = false`
+  (§53-11) ; les 12 catégories sont amorcées depuis
+  `config('boulangerie.expense_categories')`. Référence `EXP-{Ym}-{NNNN}`
+  générée en transaction.
+- **Exports sans dépendance.** CSV (BOM UTF-8, séparateur `;`),
+  SpreadsheetML 2003 (`.xls` ouvert par Excel) et vue imprimable
+  `reports.print` (`@media print` → « Imprimer → PDF »). Aucun dompdf ni
+  PhpSpreadsheet. Le grand livre des mouvements utilise les mêmes
+  formats via `/inventory/movements/export`, avec les filtres de l'écran.
+- **Permissions.** `ExpensePolicy` (`expense.view` / `expense.manage`,
+  suppression toujours refusée) ; routes rapports sous
+  `permission:report.view`, export sous `permission:report.export`.
+- **Dashboards par rôle.** `DashboardController::index()` choisit la vue
+  depuis le rôle connecté (Super-Admin consolidé + CA par site,
+  Production alertes/écarts, Vente top produits) avec tendance 7 j via
+  `x-ui.bar-chart` (valeurs 0-100 normalisées côté serveur).

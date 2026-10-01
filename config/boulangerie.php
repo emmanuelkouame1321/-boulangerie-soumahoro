@@ -132,9 +132,11 @@ return [
         'payroll.view',
         'payroll.manage',
         'expense.view',
+        'expense.manage',
         'finished-goods.view',
         'report.view',
         'report.view-commercial',
+        'report.export',
         'alert.view',
         'alert.acknowledge',
         'audit.view',
@@ -287,6 +289,29 @@ return [
         'active' => 'Actif',
         'inactive' => 'Inactif',
         'suspended' => 'Suspendu',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Catégories de charges (cahier §18)
+    |--------------------------------------------------------------------------
+    | Amorçage : électricité, eau et imprévus sont les catégories initiales ;
+    | les autres sont administrables depuis l'écran Charges. Les montants
+    | sont en FCFA.
+    */
+    'expense_categories' => [
+        ['code' => 'electricity', 'name' => 'Électricité', 'position' => 10],
+        ['code' => 'water', 'name' => 'Eau', 'position' => 20],
+        ['code' => 'fuel', 'name' => 'Carburant', 'position' => 30],
+        ['code' => 'transport', 'name' => 'Transport', 'position' => 40],
+        ['code' => 'maintenance', 'name' => 'Maintenance', 'position' => 50],
+        ['code' => 'repair', 'name' => 'Réparation', 'position' => 60],
+        ['code' => 'rent', 'name' => 'Loyer', 'position' => 70],
+        ['code' => 'communication', 'name' => 'Communication', 'position' => 80],
+        ['code' => 'packaging', 'name' => 'Emballage', 'position' => 90],
+        ['code' => 'administration', 'name' => 'Administration', 'position' => 100],
+        ['code' => 'unexpected', 'name' => 'Imprévus', 'position' => 110],
+        ['code' => 'other', 'name' => 'Autres', 'position' => 120],
     ],
 
     /*
