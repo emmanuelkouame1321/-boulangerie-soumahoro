@@ -371,9 +371,50 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
 - Policies `SalePolicy`, `CustomerPolicy`, `DayClosingPolicy` ; 152 tests
   verts (514 assertions), Larastan, Pint et charte propres
 
-**Prochaine tâche : Phase 6 — pertes et péremption.** Lots expirés,
- `ExpiryService` + job planifié, transformation des invendus en pertes,
- alertes. Voir `ROADMAP.md`.
+**Phase 6 — pertes et péremption : terminée.**
+
+- Pertes : `loss_records` + `loss_items` (`LossReason` : expiry / unsold /
+  production_defect / damage / other ; `LossOrigin` : manual / expiry),
+  référence `LOSS-{Ym}-{NNNN}`, quantités BCMath, valeur en FCFA entiers
+- `App\Domain\Inventory\LossService::record()` : transaction, une ligne
+  par produit (`unit_value` = `loss.valuation_field`, `line_value` =
+  `Decimal::toFrancs`), sortie de stock `LossOut` via
+  `StockMovementService` (clé `loss:{recordId}:item:{itemId}`), alerte
+  `SignificantLoss` au-delà de `loss.significant_threshold`,
+  `EmptyLossException` sans ligne
+- Lots FEFO : `App\Domain\Inventory\LotService` — `sellFromLots()`
+  (premier expiré, premier sorti, **exclut les lots expirés**),
+  `attributeToLots()` (imputation automatique d'une perte sans lot
+  désigné, expirés compris), `deriveStatus()`. Un lot expiré est refusé à
+  la vente (`LotExpiredException`, cahier §41) ; un lot désigné insuffisant
+  lève `InsufficientLotException`
+- Péremption : `App\Domain\Inventory\ExpiryService` — `refresh()`
+  (statuts dérivés + alertes `Expired` / `ExpirySoon` auto-résolues),
+  `convertExpired()` (lots expirés → une perte `LossOrigin::Expiry`,
+  **idempotente** via les clés `batch-expiry:{lot}:{date}`),
+  `expiredLotsQuery()` partagé écran / lot
+- Règle de péremption configurable : `expiry.soon_days` (défaut 1),
+  `expiry.conversion` (`on_expiry_date` | `day_after_expiry_date`),
+  `loss.valuation_field` (`purchase_price`), `loss.significant_threshold`,
+  `loss_reasons`
+- Job planifié §40 : `App\Jobs\CheckBatchExpiry` (refresh + convertExpired
+  par site) dispatché par `boulangerie:expiry-check`
+  (`App\Console\Commands\ExpiryCheckCommand`), planifié
+  `->hourlyAt(5)` dans `routes/console.php`
+- Centre d'alertes : `StockAlertType` étendu (`ExpirySoon`, `Expired`,
+  `SignificantLoss`, `ProductionGap`) ; `StockAlertService` expose
+  `open()` / `resolve()` (les alertes conditionnelles Low/Critical/Cumulées
+  sont recalculées, les alertes événementielles sont auto-résolues)
+- Écrans `/losses` (liste, recherche, filtres motif/date),
+  `/losses/create`, `/losses/{loss}`, `/notifications` (filtres
+  statut/type, acquittement)
+- Policies `LossRecordPolicy` (`loss.view` / `loss.create`),
+  `StockAlertPolicy` (`alert.view` / `alert.acknowledge`) ; 174 tests
+  verts (624 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : Phase 7 — grossistes et ristournes.** `wholesalers`,
+ `wholesaler_rules`, `wholesaler_rebates`, `WholesalerRebateService`,
+ fiches et écran de ristournes. Voir `ROADMAP.md`.
 
 ### Repères utiles
 

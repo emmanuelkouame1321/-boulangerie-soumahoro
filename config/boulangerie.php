@@ -204,6 +204,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Péremption et pertes (cahier §8.2 et §22)
+    |--------------------------------------------------------------------------
+    */
+    'expiry' => [
+        // Détection « à écouler » : jours restants avant la date limite.
+        'soon_days' => 1,
+        // Règle de conversion des invendus en perte (§8.2) :
+        //  - 'on_expiry_date'         : à l'arrivée de la date limite ;
+        //  - 'day_after_expiry_date'  : le jour suivant la date limite.
+        'conversion' => 'on_expiry_date',
+    ],
+
+    'loss' => [
+        // Champ du produit (entiers FCFA) servant à valoriser une perte.
+        'valuation_field' => 'purchase_price',
+        // Seuil (FCFA) au-delà duquel une ligne ouvre une alerte
+        // « perte importante » (cahier §22).
+        'significant_threshold' => 25_000,
+    ],
+
+    'loss_reasons' => [
+        'expiry' => 'Péremption',
+        'unsold' => 'Invendu',
+        'production_defect' => 'Défaut production',
+        'damage' => 'Casse',
+        'other' => 'Autre',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | États métier (libellés + sémantique visuelle)
     |--------------------------------------------------------------------------
     | Le composant <x-ui.status-badge /> consomme exclusivement cette table.

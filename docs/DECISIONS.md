@@ -413,6 +413,68 @@ entrée qui la remplace.
 
 ---
 
+## ADR-017 — Pertes et péremption : opération historique, conversion idempotente
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §41 impose qu'un lot périmé ne soit plus
+  vendable, §11 / §50 veulent que les invendus et périmés soient
+  transformés en pertes tracées (valeur, motif, date), §40 attend un
+  traitement planifié de l'expiration, et §54-6 / §54-7 (règles exactes de
+  péremption, produits partiellement vendus) restent ouverts.
+- **Décisions :**
+  1. **Une perte est une opération de stock historique et valorisée.**
+     `LossService::record()` écrit une sortie `LossOut` via
+     `StockMovementService` (ADR-013) avec une clé
+     `loss:{recordId}:item:{itemId}` : le stock suit le flux normal,
+     jamais une écriture directe, et une perte ne se corrige que par une
+     opération compensatoire, jamais par suppression.
+  2. **Une perte par ligne de produit, sans lot obligatoire.** L'écran de
+     saisie ne demande pas de lot : `LotService::attributeToLots()` impute
+     la quantité aux lots en FEFO (expirés compris, car une perte de
+     périmé doit vider les lots concernés). Un lot éventuellement désigné
+     et insuffisant lève `InsufficientLotException`.
+  3. **Le lot périmé n'est plus vendable.** `LotService::sellFromLots()`
+     exclut les lots expirés : une vente qui devrait s'y appuyer échoue
+     (`LotExpiredException`, cahier §41) au lieu de sortir un produit
+     impropre. Le stock physique insuffisant hors expirés reste traité par
+     `InsufficientStockException`.
+  4. **Ordre de verrouillage : lots puis stock.** Purge de péremption,
+     vente et perte s'appuient toutes sur le même ordre (lots ordonnés
+     FEFO verrouillés avant la ligne de stock) pour éviter les
+     interblocages en concurrence.
+  5. **La conversion des lots expirés est idempotente.**
+     `ExpiryService::convertExpired()` regroupe les lots expirés du jour en
+     une perte `LossReason::Expiry` / `LossOrigin::Expiry` et écrit le
+     mouvement avec la clé `batch-expiry:{lotId}:{date}` : une seconde
+     exécution le même jour rejoint la perte existante au lieu d'en créer
+     une autre. Le job `CheckBatchExpiry` peut donc être rejoué sans
+     risque.
+  6. **Règle de péremption configurable.** `expiry.conversion`
+     (`on_expiry_date` = périme le jour même, `day_after_expiry_date` =
+     périme le lendemain) et `expiry.soon_days` (défaut 1) portent le
+     §54-6 ; `LossService` valorise à `loss.valuation_field`
+     (`purchase_price` par défaut) plutôt qu'un prix de vente, car une
+     perte est un coût, et la valeur est arrondie au franc
+     (`Decimal::toFrancs`).
+  7. **Deux familles d'alertes.** Les alertes *conditionnelles*
+     (`Low`, `Critical`, `Cumulated`) sont recalculées à chaque passage de
+     `StockAlertService` ; les alertes *événementielles* (`ExpirySoon`,
+     `Expired`, `SignificantLoss`, `ProductionGap`) ne sont ouvertes que
+     lors de l'événement puis **auto-résolues** (`resolve()`) quand la
+     condition disparaît. Aucune alerte n'est supprimée. Le recalcul ne
+     referme jamais une alerte événementielle encore en cours.
+- **Justification :** réutiliser `StockMovementService` et l'idempotence
+  par clé garde une seule source de vérité pour le stock ; imputer en
+  FEFO sans imposer de lot à l'utilisateur respecte la saisie réelle en
+  boutique tout en gardant la traçabilité par lot.
+- **Conséquence :** les questions §54-6 et §54-7 sont couvertes par des
+  valeurs configurables (hypothèse par défaut retenue). Les produits **non
+  tracés par lot** ne sont pas imputés (`LotService` retourne `[]`) : le
+  stock fait foi, comportement voulu à documenter pour la Phase 7.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le
@@ -433,4 +495,6 @@ Tant qu'une question n'est pas tranchée :
 | Clé d'idempotence | obligatoire sur les opérations critiques | à confirmer |
 | Glace / fagot / sel | ressources cumulées en FCFA par sac | à confirmer |
 | Durée limite de vente | configurable par produit | à confirmer |
+| Règles de péremption | `expiry.conversion` + `expiry.soon_days` (ADR-017) | à confirmer |
+| Produits partiellement vendus | imputation FEFO, lot non obligatoire (ADR-017) | à confirmer |
 | Modes de paiement | espèces, mobile money, virement, autre | à confirmer |

@@ -4,7 +4,7 @@
 > la traiter en respectant `AGENTS.md`, la cocher, mettre à jour l'en-tête
 > de statut, puis passer à la suivante. Ne jamais sauter une phase.
 
-**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅**
+**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅ → Phase 6 terminée ✅**
 
 Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
@@ -268,21 +268,32 @@ au-delà du seuil configuré. ✅ (`day_closing.gap_justification_threshold`,
 
 ---
 
-## Phase 6 — Pertes et péremption (MVP 11, 12)
+## Phase 6 — Pertes et péremption (MVP 11, 12) ✅
 
-- [ ] Migration `loss_records`, `loss_items`
-- [ ] `App\Domain\Inventory\ExpiryService` + job planifié (scheduler §40)
-- [ ] Détection des lots à écouler et expirés
-- [ ] Passage automatique du reste en perte à la date limite,
-      idempotent, avec valeur de perte
-- [ ] Générateur d'alertes (stock faible, critique, cumul atteint,
-      expiration proche, expiré, écart de rendement, perte importante)
-- [ ] Écran Pertes + écran Alertes (Design System §46, §69)
-- [ ] Tests : un lot expiré ne peut plus être vendu ; le job est
-      idempotent (deux exécutions = une seule perte)
+- [x] Migration `loss_records`, `loss_items` (motif, origine, référence
+      `LOSS-{Ym}-{NNNN}`, valorisation FCFA figée, lot tracé)
+- [x] `App\Domain\Inventory\ExpiryService` + job planifié
+      (`CheckBatchExpiry`, commande `boulangerie:expiry-check` cadencée
+      par le scheduler §40)
+- [x] Détection des lots à écouler et expirés : statuts `BatchStatus`
+      dérivés + alertes `expiry_soon` / `expired` (auto-résolues)
+- [x] Passage automatique du reste en perte à la date limite, idempotent
+      (`batch-expiry:{lot}:{date}` + garde sous verrou), avec valeur de
+      perte (valorisation configurable, §8.2)
+- [x] Consommation FEFO des lots à la vente : le lot le plus proche de
+      sa date limite part en premier et **un lot expiré ne peut plus
+      être vendu** (`LotExpiredException`, message §41)
+- [x] Générateur d'alertes : stock faible, critique, cumul atteint,
+      expiration proche, expiré, écart de rendement, perte importante
+- [x] Écran Pertes (liste filtrable, création, détail) et écran
+      Alertes réel avec acquittement (Design System §46, §69)
+- [x] Tests : lot expiré invendable, FEFO, job idempotent (deux
+      exécutions = une seule perte), règles configurables, permissions
 
 **Critère (cahier §50) :** les dates limites sont calculées, les expirés
 identifiés, les invendus transformés en pertes selon la règle configurée.
+✅ (`boulangerie.expiry.conversion` : `on_expiry_date` /
+`day_after_expiry_date`)
 
 ---
 

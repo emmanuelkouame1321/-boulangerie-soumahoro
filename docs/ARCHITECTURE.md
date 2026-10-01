@@ -246,3 +246,49 @@ PointOfSale (Livewire) → panier + appel à SalesService (aucune règle dans le
 - Les listes de ventes, clients et clôtures sont paginées et cherchables
   côté serveur ; les permissions sont portées par `SalePolicy`,
   `CustomerPolicy` et `DayClosingPolicy`.
+
+## 15. Module Pertes & péremption
+
+```
+LotService          → sellFromLots() / attributeToLots() : FEFO, un seul point d'accès aux lots
+LossService         → record() : perte + lignes + stock (une transaction), valorisée
+ExpiryService       → refresh() puis convertExpired() : statuts, alertes, perte des lots expirés
+CheckBatchExpiry    → job planifié (boulangerie:expiry-check, hourlyAt(5)) : refresh + convertExpired par site
+```
+
+- **Une perte est une opération de stock.** `LossService::record()`
+  ouvre une transaction, crée `loss_records` / `loss_items`, puis écrit
+  le stock via `StockMovementService` (sortie `LossOut`, clé
+  `loss:{recordId}:item:{itemId}`). Le stock n'est jamais modifié
+  directement et une perte ne se supprime pas : elle se compense. Voir
+  ADR-017.
+- **Imputation FEFO automatique.** L'écran ne demande pas de lot :
+  `LotService::attributeToLots()` répartit la quantité sur les lots les
+  plus proches de la péremption (expirés compris). Un lot explicite
+  insuffisant lève `InsufficientLotException`.
+- **Lot expiré invendable.** `LotService::sellFromLots()` (appelé par
+  `SalesService` avant chaque sortie `FinishedGood`) exclut les lots
+  expirés et lève `LotExpiredException` (cahier §41) plutôt que de sortir
+  un produit impropre. Ordre de verrouillage lots → stock, comme la vente
+  et la purge.
+- **Péremption configurable.** `ExpiryService::isExpiredOn()` applique
+  `expiry.conversion` (`on_expiry_date` / `day_after_expiry_date`) et
+  `expiry.soon_days` porte le seuil « bientôt périmé » (§54-6).
+  `expiredLotsQuery()` est partagé entre l'écran et le job.
+- **Conversion idempotente.** `ExpiryService::convertExpired()` transforme
+  les lots expirés du jour en une perte `LossOrigin::Expiry` et écrit le
+  mouvement sous la clé `batch-expiry:{lotId}:{date}` : un rejeu le même
+  jour rejoint la perte existante. Le job est donc sans danger.
+- **Deux familles d'alertes.** `StockAlertService::open()` /
+  `resolve()` distinguent les alertes conditionnelles (Low, Critical,
+  Cumulées — recalculées à chaque passage) des alertes événementielles
+  (`ExpirySoon`, `Expired`, `SignificantLoss`, `ProductionGap` — ouvertes à
+  l'événement puis auto-résolues).
+- **Valorisation au coût.** `LossService` valorise à
+  `loss.valuation_field` (`purchase_price` par défaut), arrondi au franc
+  (`Decimal::toFrancs`), et ouvre une alerte `SignificantLoss` au-delà de
+  `loss.significant_threshold`.
+- Les écrans `/losses` et `/notifications` sont paginés et filtrables
+  côté serveur ; les permissions sont portées par `LossRecordPolicy`
+  (`loss.view` / `loss.create`) et `StockAlertPolicy` (`alert.view` /
+  `alert.acknowledge`).

@@ -5,50 +5,103 @@
 <x-layouts.app title="Pertes & invendus">
     <x-layout.page-header eyebrow="Contrôle des écarts" title="Pertes & invendus">
         <x-slot:actions>
-            <x-ui.button variant="primary" icon="plus" wire:click="$dispatch('open-modal', 'loss-create')">Déclarer une perte</x-ui.button>
+            @if ($canCreate)
+                <x-ui.button variant="primary" icon="plus" :href="route('losses.create')">Déclarer une perte</x-ui.button>
+            @endif
         </x-slot:actions>
     </x-layout.page-header>
 
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-4">{{ session('status') }}</x-ui.alert>
+    @endif
+
+    @if (session('error'))
+        <x-ui.alert tone="danger" class="mb-4">{{ session('error') }}</x-ui.alert>
+    @endif
+
     <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
-            <x-ui.stat-card label="Pertes du jour" :value="Format::money(85_000)" trend="32 opérations" trend-tone="warning" icon="trash-2" />
-            <x-ui.stat-card label="Invendus" :value="Format::number(124)" unit="unités" trend="à écouler" trend-tone="warning" icon="package-x" />
-            <x-ui.stat-card label="Expirés" :value="Format::number(42)" trend="à traiter" trend-tone="danger" icon="calendar-x" />
-            <x-ui.stat-card label="Écarts" :value="Format::number(8)" trend="justifications" trend-tone="warning" icon="triangle-alert" />
+        <div class="grid grid-cols-2 gap-3.5 xl:grid-cols-3">
+            <x-ui.stat-card
+                label="Pertes du jour"
+                :value="Format::money($todayValue)"
+                :trend="Format::number($todayCount).' opération'.($todayCount > 1 ? 's' : '')"
+                :trend-tone="$todayCount > 0 ? 'warning' : 'muted'"
+                icon="trash-2"
+            />
+            <x-ui.stat-card label="Valeur du mois" :value="Format::money($monthValue)" icon="calendar" />
+            <x-ui.stat-card
+                label="Lots expirés à traiter"
+                :value="Format::number($expiredLots)"
+                :trend="$expiredLots > 0 ? 'à convertir en perte' : 'rien en attente'"
+                :trend-tone="$expiredLots > 0 ? 'danger' : 'muted'"
+                icon="package-x"
+            />
         </div>
 
         <x-ui.card flush>
-            <x-ui.data-table :headers="['Référence', 'Produit / lot', ['label' => 'Quantité', 'align' => 'right'], 'Motif', ['label' => 'Valeur', 'align' => 'right'], 'Utilisateur', 'Statut']">
-                @foreach ([
-                    ['LOSS-0042', 'Croissant • #20260930-002', 15, 'Péremption', 12_000, 'Awa', 'success', 'Validée'],
-                    ['LOSS-0041', 'Baguette • #20261001-001', 8, 'Défaut production', 4_000, 'Kouassi', 'warning', 'À justifier'],
-                    ['LOSS-0040', 'Cake nature • #20260929-004', 3, 'Invendu', 10_500, 'Awa', 'success', 'Validée'],
-                ] as [$ref, $product, $qty, $reason, $value, $user, $tone, $status])
-                    <tr>
-                        <td class="font-bold">{{ $ref }}</td>
-                        <td>{{ $product }}</td>
-                        <td class="numeric text-right">{{ $qty }}</td>
-                        <td>{{ $reason }}</td>
-                        <td class="numeric text-right font-bold">{{ Format::money($value) }}</td>
-                        <td>{{ $user }}</td>
-                        <td><x-ui.status-badge :tone="$tone" :label="$status" :icon="false" /></td>
-                    </tr>
-                @endforeach
-            </x-ui.data-table>
+            <form method="GET" action="{{ route('losses.index') }}" class="flex flex-wrap items-end gap-3 p-4">
+                <div class="min-w-56 flex-1">
+                    <x-ui.search-input name="search" :value="$search" placeholder="Référence ou produit…" />
+                </div>
+
+                <div class="min-w-44">
+                    <x-ui.select name="reason" label="Motif" :options="$reasonOptions" placeholder="— Tous —" :selected="$reason" />
+                </div>
+
+                <div class="min-w-44">
+                    <x-ui.form-field name="date" label="Date" type="date" :value="$date" />
+                </div>
+
+                <x-ui.button type="submit" variant="secondary">Filtrer</x-ui.button>
+
+                @if ($search !== '' || $reason !== '' || $date !== '')
+                    <x-ui.button variant="ghost" :href="route('losses.index')">Effacer</x-ui.button>
+                @endif
+            </form>
+
+            @if ($losses->isEmpty())
+                <div class="p-4">
+                    <x-ui.empty-state
+                        icon="trash-2"
+                        title="{{ $search !== '' || $reason !== '' || $date !== '' ? 'Aucun résultat' : 'Aucune perte enregistrée' }}"
+                        description="Les invendus expirés sont convertis automatiquement ; vous pouvez aussi déclarer une casse ou un défaut."
+                    >
+                        @if ($canCreate)
+                            <x-slot:action>
+                                <x-ui.button variant="primary" icon="plus" :href="route('losses.create')">Déclarer une perte</x-ui.button>
+                            </x-slot:action>
+                        @endif
+                    </x-ui.empty-state>
+                </div>
+            @else
+                <x-ui.data-table :headers="['Référence', 'Motif', 'Origine', 'Date', ['label' => 'Lignes', 'align' => 'right'], ['label' => 'Quantité', 'align' => 'right'], ['label' => 'Valeur', 'align' => 'right'], 'Auteur', '']">
+                    @foreach ($losses as $loss)
+                        <tr>
+                            <td class="font-bold">{{ $loss->reference }}</td>
+                            <td>{{ $loss->reason->label() }}</td>
+                            <td>
+                                <x-ui.status-badge
+                                    :tone="$loss->origin->value === 'expiry' ? 'warning' : 'neutral'"
+                                    :label="$loss->origin->label()"
+                                    :icon="false"
+                                />
+                            </td>
+                            <td>{{ $loss->occurred_on?->format('d/m/Y') ?? '—' }}</td>
+                            <td class="numeric text-right">{{ Format::number($loss->items_count) }}</td>
+                            <td class="numeric text-right">{{ Format::stock($loss->total_quantity) }}</td>
+                            <td class="numeric text-right font-bold">{{ Format::money($loss->total_value) }}</td>
+                            <td>{{ $loss->createdBy?->name ?? 'Système' }}</td>
+                            <td>
+                                <x-ui.button variant="secondary" size="sm" :href="route('losses.show', $loss)">Ouvrir</x-ui.button>
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-ui.data-table>
+
+                <div class="p-4">
+                    {{ $losses->links() }}
+                </div>
+            @endif
         </x-ui.card>
     </div>
-
-    <x-ui.modal name="loss-create" title="Déclarer une perte" subtitle="Formulaire prototype">
-        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <x-ui.form-field name="product" label="Produit / lot" placeholder="Saisir…" />
-            <x-ui.form-field name="quantity" label="Quantité" type="number" inputmode="numeric" />
-            <x-ui.select name="reason" :options="['Péremption' => 'Péremption', 'Invendu' => 'Invendu', 'Défaut production' => 'Défaut production', 'Casse' => 'Casse']" label="Motif" />
-            <x-ui.form-field name="comment" label="Commentaire" placeholder="Optionnel" />
-        </div>
-
-        <x-slot:footer>
-            <x-ui.button variant="secondary" @click="open = false">Annuler</x-ui.button>
-            <x-ui.button variant="primary" @click="open = false; window.toast('Perte enregistrée')">Enregistrer</x-ui.button>
-        </x-slot:footer>
-    </x-ui.modal>
 </x-layouts.app>

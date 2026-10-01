@@ -7,6 +7,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DayClosingController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\LossController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockAlertController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
@@ -138,7 +140,23 @@ Route::middleware('auth')->group(function (): void {
         ->whereNumber('sale')
         ->middleware('permission:sales.view');
 
-    Route::view('/losses', 'losses.index')->name('losses.index')->middleware('permission:loss.view');
+    // Pertes et invendus (cahier §8.2 et §15).
+    Route::get('/losses', [LossController::class, 'index'])
+        ->name('losses.index')
+        ->middleware('permission:loss.view');
+
+    Route::get('/losses/create', [LossController::class, 'create'])
+        ->name('losses.create')
+        ->middleware('permission:loss.create');
+
+    Route::post('/losses', [LossController::class, 'store'])
+        ->name('losses.store')
+        ->middleware('permission:loss.create');
+
+    Route::get('/losses/{loss}', [LossController::class, 'show'])
+        ->name('losses.show')
+        ->whereNumber('loss')
+        ->middleware('permission:loss.view');
 
     // Commercial
     Route::get('/customers', [CustomerController::class, 'index'])
@@ -193,7 +211,14 @@ Route::middleware('auth')->group(function (): void {
 
     // Analyse
     Route::view('/reports', 'reports.index')->name('reports.index')->middleware('permission:report.view');
-    Route::view('/notifications', 'notifications.index')->name('notifications.index')->middleware('permission:alert.view');
+    Route::get('/notifications', [StockAlertController::class, 'index'])
+        ->name('notifications.index')
+        ->middleware('permission:alert.view');
+
+    Route::post('/notifications/{alert}/acknowledge', [StockAlertController::class, 'acknowledge'])
+        ->name('notifications.acknowledge')
+        ->whereNumber('alert')
+        ->middleware('permission:alert.acknowledge');
 
     // Administration
     Route::view('/settings', 'settings.index')->name('settings.index')->middleware('permission:settings.view');

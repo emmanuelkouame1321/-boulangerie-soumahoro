@@ -92,4 +92,19 @@ final class Decimal
     {
         return bccomp(self::normalize($value), '0', $scale) === -1;
     }
+
+    /**
+     * Montant en entiers FCFA : quantité × prix unitaire, arrondi au
+     * franc le plus proche. Jamais de `float` pour un montant.
+     */
+    public static function toFrancs(int|float|string $quantity, int $unitPrice): int
+    {
+        if ($unitPrice <= 0 || ! self::isPositive($quantity)) {
+            return 0;
+        }
+
+        $raw = bcmul(self::normalize($quantity), (string) $unitPrice, 2);
+
+        return (int) bcadd($raw, '0.5', 0);
+    }
 }

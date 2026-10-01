@@ -74,11 +74,80 @@ final class StockAlertService
                 continue;
             }
 
+            // Seules les alertes gérées par ce recalcul vivent avec lui :
+            // l'expiration est gérée par ExpiryService, et les alertes
+            // événementielles (perte importante, écart de rendement)
+            // restent ouvertes jusqu'à leur acquittement.
+            if (in_array($alert->type, [StockAlertType::Low, StockAlertType::Critical, StockAlertType::Cumulated], true) === false) {
+                continue;
+            }
+
             $alert->update([
                 'status' => StockAlertStatus::Resolved->value,
                 'resolved_at' => now(),
             ]);
         }
+    }
+
+    /**
+     * Ouvre (ou met à jour) une alerte active de type donné. Utilisé par
+     * les modules qui déclenchent leurs propres alertes (péremption,
+     * pertes, production) sans dupliquer le cycle de vie.
+     */
+    public function open(
+        Bakery $bakery,
+        Product $product,
+        StockAlertType $type,
+        string $message,
+        ?string $observed = null,
+        ?string $threshold = null,
+    ): StockAlert {
+        $open = StockAlert::withoutBakeryScope()
+            ->where('bakery_id', $bakery->getKey())
+            ->where('product_id', $product->getKey())
+            ->where('type', $type->value)
+            ->where('status', '!=', StockAlertStatus::Resolved->value)
+            ->first();
+
+        if ($open !== null) {
+            $open->update([
+                'threshold' => $threshold,
+                'observed_value' => $observed,
+                'message' => $message,
+            ]);
+
+            return $open;
+        }
+
+        return StockAlert::create([
+            'bakery_id' => $bakery->getKey(),
+            'product_id' => $product->getKey(),
+            'type' => $type->value,
+            'status' => StockAlertStatus::Open->value,
+            'threshold' => $threshold,
+            'observed_value' => $observed,
+            'message' => $message,
+            'triggered_at' => now(),
+        ]);
+    }
+
+    /**
+     * Referme l'alerte active de type donné, si elle existe (condition
+     * disparue ou événement traité).
+     */
+    public function resolve(Bakery $bakery, Product $product, StockAlertType $type): void
+    {
+        StockAlert::withoutBakeryScope()
+            ->where('bakery_id', $bakery->getKey())
+            ->where('product_id', $product->getKey())
+            ->where('type', $type->value)
+            ->where('status', '!=', StockAlertStatus::Resolved->value)
+            ->each(static function (StockAlert $alert): void {
+                $alert->update([
+                    'status' => StockAlertStatus::Resolved->value,
+                    'resolved_at' => now(),
+                ]);
+            });
     }
 
     /**

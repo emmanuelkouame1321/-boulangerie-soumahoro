@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Sales;
 
+use App\Domain\Inventory\LotService;
 use App\Domain\Inventory\StockMovementService;
+use App\Enums\ProductType;
 use App\Enums\SaleStatus;
 use App\Enums\SaleType;
 use App\Enums\StockMovementType;
@@ -38,6 +40,7 @@ final class SalesService
 {
     public function __construct(
         private readonly StockMovementService $movements,
+        private readonly LotService $lots,
     ) {}
 
     /**
@@ -126,6 +129,15 @@ final class SalesService
                         'position' => $position,
                     ]);
 
+                    // Lots (FEFO) : le lot le plus proche de sa date
+                    // limite est consommé en premier, et un lot expiré
+                    // ne peut plus être vendu (cahier §8 et §41). Les
+                    // lots sont verrouillés avant le stock : ordre
+                    // « lots puis stock » identique à la péremption.
+                    if ($product->type === ProductType::FinishedGood) {
+                        $this->lots->sellFromLots($bakery, $product, $quantity, $soldAt);
+                    }
+
                     $this->movements->apply(
                         bakery: $bakery,
                         product: $product,
@@ -190,13 +202,7 @@ final class SalesService
      */
     public static function lineTotal(int|float|string $quantity, int $unitPrice): int
     {
-        if ($unitPrice <= 0 || ! Decimal::isPositive($quantity)) {
-            return 0;
-        }
-
-        $raw = bcmul(Decimal::normalize($quantity), (string) $unitPrice, 2);
-
-        return (int) bcadd($raw, '0.5', 0);
+        return Decimal::toFrancs($quantity, $unitPrice);
     }
 
     private function findByIdempotencyKey(string $key): ?Sale

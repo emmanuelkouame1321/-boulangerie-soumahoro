@@ -10,6 +10,7 @@ use App\Domain\Sites\BakeryContext;
 use App\Enums\ProductType;
 use App\Exceptions\EmptySaleException;
 use App\Exceptions\InsufficientStockException;
+use App\Exceptions\LotExpiredException;
 use App\Models\Bakery;
 use App\Models\Product;
 use App\Models\User;
@@ -160,7 +161,7 @@ final class PointOfSale extends Component
                 paymentMethod: $method,
                 user: auth()->user() instanceof User ? auth()->user() : null,
             );
-        } catch (InsufficientStockException|EmptySaleException $exception) {
+        } catch (InsufficientStockException|EmptySaleException|LotExpiredException $exception) {
             $this->dispatch('notify', message: $exception->getMessage());
 
             return;

@@ -9,6 +9,7 @@ use App\Domain\Sites\BakeryContext;
 use App\Enums\ProductType;
 use App\Exceptions\EmptySaleException;
 use App\Exceptions\InsufficientStockException;
+use App\Exceptions\LotExpiredException;
 use App\Http\Requests\StoreSaleRequest;
 use App\Models\Bakery;
 use App\Models\Customer;
@@ -120,7 +121,7 @@ class SaleController extends Controller
                 soldAt: isset($data['sold_at']) ? Carbon::parse($data['sold_at']) : null,
                 note: $data['note'] ?? null,
             );
-        } catch (InsufficientStockException|EmptySaleException $exception) {
+        } catch (InsufficientStockException|EmptySaleException|LotExpiredException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
         }
 

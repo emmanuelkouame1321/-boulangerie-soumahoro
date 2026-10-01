@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Domain\Production;
 
+use App\Domain\Inventory\StockAlertService;
 use App\Domain\Inventory\StockMovementService;
 use App\Enums\BatchStatus;
 use App\Enums\ProductionOrderStatus;
 use App\Enums\RecipeDeductionMode;
+use App\Enums\StockAlertType;
 use App\Enums\StockMovementType;
 use App\Exceptions\MissingGapReasonException;
 use App\Exceptions\ProductionAlreadyValidatedException;
 use App\Models\Bakery;
+use App\Models\Product;
 use App\Models\ProductionBatch;
 use App\Models\ProductionOrder;
 use App\Models\ProductionOrderItem;
@@ -43,6 +46,7 @@ final class ProductionService
     public function __construct(
         private readonly StockMovementService $movements,
         private readonly RecipeCalculator $calculator,
+        private readonly StockAlertService $alerts,
     ) {}
 
     /**
@@ -156,8 +160,40 @@ final class ProductionService
             $locked->validated_by = $user?->getKey();
             $locked->save();
 
+            if (bccomp($gap, '0', Decimal::SCALE) !== 0) {
+                $this->openGapAlerts($locked, $bakery, $gap);
+            }
+
             return $locked;
         });
+    }
+
+    /**
+     * Alerte « écart de rendement » (cahier §22) : événement ouvert sur
+     * le produit sorti, refermé par acquittement.
+     */
+    private function openGapAlerts(ProductionOrder $order, Bakery $bakery, string $gap): void
+    {
+        foreach ($order->outputs()->pluck('product_id')->unique() as $productId) {
+            $product = Product::query()->find((int) $productId);
+
+            if ($product === null) {
+                continue;
+            }
+
+            $this->alerts->open(
+                $bakery,
+                $product,
+                StockAlertType::ProductionGap,
+                sprintf(
+                    'Écart de rendement sur %s : %s unités (%s).',
+                    $order->reference,
+                    Decimal::trim($gap),
+                    $order->gap_reason ?? 'sans motif'
+                ),
+                Decimal::abs($gap),
+            );
+        }
     }
 
     /**
