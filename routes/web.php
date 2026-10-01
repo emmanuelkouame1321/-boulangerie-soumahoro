@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Http\Controllers\BakeryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DayClosingController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LossController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -265,8 +267,67 @@ Route::middleware('auth')->group(function (): void {
         ->name('suppliers.update')
         ->whereNumber('supplier')
         ->middleware('permission:supplier.manage');
-    Route::view('/employees', 'employees.index')->name('employees.index')->middleware('permission:employee.view');
-    Route::view('/payroll', 'payroll.index')->name('payroll.index')->middleware('permission:payroll.view');
+    // Ressources — employés (cahier §16).
+    Route::get('/employees', [EmployeeController::class, 'index'])
+        ->name('employees.index')
+        ->middleware('permission:employee.view');
+
+    Route::get('/employees/create', [EmployeeController::class, 'create'])
+        ->name('employees.create')
+        ->middleware('permission:employee.manage');
+
+    Route::post('/employees', [EmployeeController::class, 'store'])
+        ->name('employees.store')
+        ->middleware('permission:employee.manage');
+
+    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])
+        ->name('employees.show')
+        ->whereNumber('employee')
+        ->middleware('permission:employee.view');
+
+    Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])
+        ->name('employees.edit')
+        ->whereNumber('employee')
+        ->middleware('permission:employee.manage');
+
+    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])
+        ->name('employees.update')
+        ->whereNumber('employee')
+        ->middleware('permission:employee.manage');
+
+    // Paie (cahier §17).
+    Route::get('/payroll', [PayrollController::class, 'index'])
+        ->name('payroll.index')
+        ->middleware('permission:payroll.view');
+
+    Route::post('/payroll/periods', [PayrollController::class, 'storePeriod'])
+        ->name('payroll.periods.store')
+        ->middleware('permission:payroll.manage');
+
+    Route::get('/payroll/{period}', [PayrollController::class, 'show'])
+        ->name('payroll.show')
+        ->whereNumber('period')
+        ->middleware('permission:payroll.view');
+
+    Route::post('/payroll/{period}/generate', [PayrollController::class, 'generate'])
+        ->name('payroll.generate')
+        ->whereNumber('period')
+        ->middleware('permission:payroll.manage');
+
+    Route::put('/payroll/items/{item}', [PayrollController::class, 'updateItem'])
+        ->name('payroll.items.update')
+        ->whereNumber('item')
+        ->middleware('permission:payroll.manage');
+
+    Route::post('/payroll/{period}/validate', [PayrollController::class, 'validatePeriod'])
+        ->name('payroll.validate')
+        ->whereNumber('period')
+        ->middleware('permission:payroll.manage');
+
+    Route::post('/payroll/{period}/pay', [PayrollController::class, 'pay'])
+        ->name('payroll.pay')
+        ->whereNumber('period')
+        ->middleware('permission:payroll.manage');
     Route::view('/expenses', 'expenses.index')->name('expenses.index')->middleware('permission:expense.view');
 
     // Analyse

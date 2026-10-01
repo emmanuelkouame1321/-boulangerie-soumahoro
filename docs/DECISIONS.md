@@ -522,6 +522,53 @@ entrée qui la remplace.
 
 ---
 
+## ADR-019 — Paie : période unique, net calculé, historique figé
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §16 décrit une fiche employé avec poste et
+  contrat configurables, et le §17 impose de gérer salaire de base,
+  primes, avances, retenues et net, avec « un historique de paie par
+  employé et par période ». Le §53-11 interdit d'écraser les données
+  historiques, et la question §54 reste silencieuse sur la période
+  (mensuelle ou autre).
+- **Décisions :**
+  1. **La période de paie est mensuelle et unique par site.**
+     `payroll_periods` porte `[bakery_id, period_year, period_month]`
+     unique et une référence `PAY-{Ym}`. Ouvrir une période existante la
+     retourne au lieu d'en créer une seconde.
+  2. **Un historique « un employé, une période ».**
+     `payroll_items` est unique sur `[payroll_period_id, employee_id]` :
+     la ligne est mise à jour tant que la période est en brouillon, puis
+     figée. `payroll_payments` conserve chaque versement (mode, montant,
+     date) sans jamais l'écraser.
+  3. **Le net est `base + primes − avances − retenues`, jamais négatif.**
+     `PayrollService::net()` borne le résultat à zéro : une avance
+     supérieure au salaire ne produit pas de net négatif.
+  4. **Génération idempotente depuis les employés actifs.**
+     `generate()` crée une ligne par employé `active` du site
+     (`firstOrCreate`) sans écraser les ajustements déjà saisis.
+  5. **La validation fige, le versement clôt.** Trois statuts
+     (`draft` / `validated` / `paid`). Toute modification d'une période
+     verrouillée lève `PayrollPeriodLockedException` ; le versement exige
+     une validation préalable (`PayrollPeriodNotValidatedException`) et
+     une période sans ligne ne peut être validée
+     (`EmptyPayrollPeriodException`).
+  6. **Postes et contrats en configuration.** Les listes `positions` et
+     `contract_types` de `config/boulangerie.php` remplacent une table
+     dédiée : elles sont amorçables et ne nécessitent pas de migration
+     pour évoluer (le ROADMAP §8 ne prévoit pas de table de postes).
+- **Justification :** une ligne par employé et par période rend
+  l'historique interrogeable sans jointure fragile ; figer à la
+  validation reproduit la règle « une fois validée, on n'y touche plus »
+  du cahier.
+- **Conséquence :** une période rectificative éventuelle devra être
+  modélisée comme une nouvelle ligne ou une nouvelle période, jamais par
+  écrasement. Les heures supplémentaires et absences (§17, « si
+  activées ») restent hors périmètre et n'ont pas de colonne dédiée.
+
+---
+
 ## Hypothèses à confirmer
 
 Le cahier des charges §54 liste 20 décisions métier à valider avec le
@@ -545,4 +592,5 @@ Tant qu'une question n'est pas tranchée :
 | Règles de péremption | `expiry.conversion` + `expiry.soon_days` (ADR-017) | à confirmer |
 | Produits partiellement vendus | imputation FEFO, lot non obligatoire (ADR-017) | à confirmer |
 | Règles de ristourne | palier sur la base de calcul, ristourne = CA éligible × taux (ADR-018) | à confirmer |
+| Période de paie | mensuelle, unique par site ; net = base + primes − avances − retenues (ADR-019) | à confirmer |
 | Modes de paiement | espèces, mobile money, virement, autre | à confirmer |

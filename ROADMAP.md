@@ -4,7 +4,7 @@
 > la traiter en respectant `AGENTS.md`, la cocher, mettre à jour l'en-tête
 > de statut, puis passer à la suivante. Ne jamais sauter une phase.
 
-**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅ → Phase 6 terminée ✅ → Phase 7 terminée ✅**
+**Statut global : Phase 0 terminée → Charte BakeryOS intégrée ✅ → Phase 1 terminée ✅ → Phase 2 terminée ✅ → Phase 3 terminée ✅ → Phase 4 terminée ✅ → Phase 5 terminée ✅ → Phase 6 terminée ✅ → Phase 7 terminée ✅ → Phase 8 terminée ✅**
 
 Légende : `[ ]` à faire · `[~]` en cours · `[x]` terminé
 
@@ -321,17 +321,26 @@ un palier en base suffit à changer le résultat.
 
 ---
 
-## Phase 8 — Employés et paie
+## Phase 8 — Employés et paie ✅
 
-- [ ] Migration `employees`, `employee_contracts`
-- [ ] Migration `payroll_periods`, `payroll_items`, `payroll_payments`
-- [ ] Postes configurables (cahier §16.2)
-- [ ] `App\Domain\Payroll\PayrollService` : salaire de base, primes,
-      avances, retenues, net, historique par période
-- [ ] Écrans Employés et Paie (Design System §48, §49)
-- [ ] Tests : calcul du net, historique non écrasé
+- [x] Migration `employees`, `employee_contracts`
+- [x] Migration `payroll_periods`, `payroll_items`, `payroll_payments`
+- [x] Postes configurables (cahier §16.2) — `config('boulangerie.positions')`
+      + types de contrat, amorçables sans modification de code
+- [x] `App\Domain\Payroll\PayrollService` : ouverture de période,
+      génération depuis les employés actifs, salaire de base, primes,
+      avances, retenues, net (jamais négatif), validation puis versement,
+      historique figé par période (`[bakery_id, year, month]` unique,
+      `[period, employé]` unique)
+- [x] Écrans Employés (liste, fiche, création, modification) et Paie
+      (liste des périodes, détail, ajustement, validation, versement)
+- [x] Tests : calcul du net, net jamais négatif, période unique,
+      période figée après validation, versement après validation,
+      versement refusé sur brouillon, permissions
 
-**Critère :** un historique de paie par employé et par période existe.
+**Critère atteint :** un historique de paie par employé et par période
+existe (`payroll_items` uniques par période et employé, `payroll_payments`
+conservés).
 
 ---
 

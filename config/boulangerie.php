@@ -128,7 +128,9 @@ return [
         'loss.view',
         'loss.create',
         'employee.view',
+        'employee.manage',
         'payroll.view',
+        'payroll.manage',
         'expense.view',
         'finished-goods.view',
         'report.view',
@@ -258,6 +260,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Employés et paie (cahier §16 et §17)
+    |--------------------------------------------------------------------------
+    | Les postes et les types de contrat sont des listes fermées amorçables ;
+    | les salaires et les éléments variables vivent dans les tables.
+    */
+    'positions' => [
+        'super-admin' => 'Super-Admin',
+        'production-manager' => 'Responsable production',
+        'sales-manager' => 'Responsable vente',
+        'worker' => 'Manoeuvre',
+        'cashier' => 'Caissier',
+        'driver' => 'Chauffeur',
+        'admin-agent' => 'Agent administratif',
+        'other' => 'Autre',
+    ],
+
+    'contract_types' => [
+        'cdi' => 'CDI',
+        'cdd' => 'CDD',
+        'intern' => 'Stage',
+        'daily' => 'Journalier',
+    ],
+
+    'employee_statuses' => [
+        'active' => 'Actif',
+        'inactive' => 'Inactif',
+        'suspended' => 'Suspendu',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Ristournes annuelles (cahier §13)
     |--------------------------------------------------------------------------
     | Les paliers réels sont administrables (table `wholesaler_rules`) : ce
@@ -340,6 +373,16 @@ return [
         ],
         'rebate' => [
             'projected' => ['label' => 'Théorique', 'tone' => 'info'],
+            'validated' => ['label' => 'Validée', 'tone' => 'success'],
+            'paid' => ['label' => 'Versée', 'tone' => 'success'],
+        ],
+        'employee' => [
+            'active' => ['label' => 'Actif', 'tone' => 'success'],
+            'inactive' => ['label' => 'Inactif', 'tone' => 'neutral'],
+            'suspended' => ['label' => 'Suspendu', 'tone' => 'warning'],
+        ],
+        'payroll' => [
+            'draft' => ['label' => 'Brouillon', 'tone' => 'info'],
             'validated' => ['label' => 'Validée', 'tone' => 'success'],
             'paid' => ['label' => 'Versée', 'tone' => 'success'],
         ],

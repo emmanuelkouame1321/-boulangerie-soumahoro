@@ -323,3 +323,34 @@ WholesalerRebateService    → aggregate() / tierFor() / compute() / validate() 
   serveur ; les permissions sont portées par `WholesalerPolicy`
   (`wholesaler.view` / `wholesaler.manage`) et `WholesalerRebatePolicy`
   (`rebate.view` / `rebate.manage`).
+
+## 17. Module Employés & paie
+
+```
+EmployeeController → fiches employés (poste, contrat, salaire, historique)
+PayrollController  → périodes de paie : génération, ajustement, validation, versement
+PayrollService     → openPeriod() / generate() / updateItem() / validate() / pay()
+```
+
+- **Période unique par site et par mois.** `payroll_periods` porte
+  `[bakery_id, period_year, period_month]` unique ; `PayrollService::openPeriod()`
+  retourne la période existante plutôt que d'en créer une seconde. Voir
+  ADR-019.
+- **Historique « un employé, une période ».** `payroll_items` est unique
+  sur `[payroll_period_id, employee_id]` ; `generate()` crée une ligne par
+  employé actif (`firstOrCreate`, sans écraser les ajustements saisis).
+- **Net calculé, jamais négatif.** `PayrollService::net()` applique
+  `base + primes − avances − retenues` et borne à zéro ; les montants sont
+  des entiers FCFA.
+- **La validation fige.** Trois statuts (`PayrollStatus`) : brouillon,
+  validée, versée. Toute mutation d'une période verrouillée lève
+  `PayrollPeriodLockedException` ; le versement exige une validation
+  (`PayrollPeriodNotValidatedException`) ; une période vide ne peut être
+  validée (`EmptyPayrollPeriodException`).
+- **Postes et contrats en configuration.** `boulangerie.positions` et
+  `boulangerie.contract_types` sont des listes fermées amorçables :
+  ajouter un poste ne demande aucune migration.
+- Les écrans `/employees` et `/payroll` sont paginés et filtrables côté
+  serveur ; les permissions sont portées par `EmployeePolicy`
+  (`employee.view` / `employee.manage`) et `PayrollPeriodPolicy`
+  (`payroll.view` / `payroll.manage`).

@@ -438,10 +438,35 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   permissions et au rôle sales-manager) ; seed `WholesalerSeeder`
 - 188 tests verts (665 assertions), Larastan, Pint et charte propres
 
-**Prochaine tâche : Phase 8 — employés et paie.** `employees`,
- `employee_contracts`, `payroll_periods`, `payroll_items`,
- `payroll_payments`, `App\Domain\Payroll\PayrollService`, écrans Employés
- et Paie. Voir `ROADMAP.md`.
+**Phase 8 — employés et paie : terminée.**
+
+- Employés : `employees` (fiche §16.1), `employee_contracts`,
+  isolés par site, poste et type de contrat issus de la configuration
+  (`boulangerie.positions`, `boulangerie.contract_types`) ; enums
+  `EmployeeStatus`, `ContractType`
+- Paie : `payroll_periods` (unique par site et par mois),
+  `payroll_items` (unique par période et employé), `payroll_payments`
+- `App\Domain\Payroll\PayrollService` : `openPeriod()`,
+  `generate()` (lignes depuis les employés actifs, salaire de base),
+  `updateItem()` (primes / avances / retenues), `refreshTotals()`,
+  `validate()` puis `pay()`. Net = base + primes − avances − retenues,
+  **jamais négatif** ; enum `PayrollStatus` (draft / validated / paid)
+- Historique figé : une période validée lève
+  `PayrollPeriodLockedException` à toute modification ; le versement exige
+  une validation (`PayrollPeriodNotValidatedException`), une période sans
+  ligne ne peut être validée (`EmptyPayrollPeriodException`)
+- Écrans `/employees` (liste, fiche avec historique, création,
+  modification) et `/payroll` (périodes, détail, ajustement des lignes,
+  validation, versement)
+- Policies `EmployeePolicy` (`employee.view` / `employee.manage`),
+  `PayrollPeriodPolicy` (`payroll.view` / `payroll.manage`, ajoutées aux
+  permissions) ; seed `EmployeeSeeder`
+- 204 tests verts (703 assertions), Larastan, Pint et charte propres
+
+**Prochaine tâche : Phase 9 — charges, rapports et dashboards.**
+ `expense_categories`, `expenses`, `App\Domain\Reporting\ReportingService`,
+ rapports §33, exports, les 3 dashboards réels et les graphiques. Voir
+ `ROADMAP.md`.
 
 ### Repères utiles
 
