@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,13 +27,24 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:password-reset')
         ->name('password.email');
 
     Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
     Route::post('/reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:password-reset')
         ->name('password.store');
+});
+
+Route::middleware('auth')->group(function (): void {
+    // Défi du second facteur : accessible sans l'avoir franchi (sinon
+    // l'utilisateur serait enfermé), limité à 5 tentatives par minute.
+    Route::get('/two-factor/challenge', [TwoFactorChallengeController::class, 'create'])
+        ->name('two-factor.challenge');
+    Route::post('/two-factor/challenge', [TwoFactorChallengeController::class, 'store'])
+        ->middleware('throttle:two-factor')
+        ->name('two-factor.challenge.store');
 });
 
 Route::post('/logout', LogoutController::class)

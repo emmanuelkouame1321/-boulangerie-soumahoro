@@ -50,6 +50,7 @@ App\Domain\Reporting\ReportingService      ← agrégats des 8 rapports + §55
 App\Domain\Audit\AuditLogger                ← unique point d'écriture de audit_logs
 App\Domain\Notifications\AlertNotifier      ← canaux et destinataires des alertes
 App\Domain\Export\ExportContent             ← contenu des exports (rapports, stock, audit)
+App\Domain\Security\TwoFactorService        ← 2FA optionnelle (TOTP, codes de secours)
 ```
 
 ## 3 bis. Convention Livewire
@@ -149,10 +150,33 @@ Jamais de stack trace ni de message technique affiché à l'utilisateur.
 
 - Pages principales < 2 s.
 - Pagination obligatoire sur toutes les grandes listes.
-- Index sur les colonnes de recherche et les clés étrangères fréquentes.
-- Cache des données de configuration.
-- Attention aux N+1 (`with()`, `withCount()`).
-- Tâches lourdes en queue.
+- Index sur les colonnes de recherche et les clés étrangères fréquentes
+  (`[bakery_id, occurred_at]` sur `stock_movements`, `[bakery_id,
+  created_at]` sur `audit_logs`, plus les index de recherche des listes).
+- Cache des données de configuration :
+  - `App\Support\Navigation` mémorise l'arbre de menu **résolu** — les
+    entrées dont la route n'existe pas encore sont écartées une fois pour
+    toutes, ce qui évite de parcourir la table des routes à chaque
+    requête ;
+  - `App\Support\Configuration` mémorise les structures dérivées de la
+    configuration (catalogue de permissions, regroupement par module,
+    libellés et permissions des rôles) ;
+  - les clés sont **indexées par le contenu** (`cacheKey()` embarqué dans
+    une empreinte de la configuration et, pour la navigation, de la table
+    des routes) : modifier la configuration ou ajouter une route produit
+    une nouvelle clé, donc jamais de purge manuelle ni de valeur périmée.
+    TTL 24 h pour nettoyer les anciennes clés. Jamais mis en cache : le
+    filtre par permission, l'état « actif » du menu, l'URL absolue et
+    tous les agrégats métier (rapports, stock, CA).
+- Limitation de débit des parcours sensibles (voir §20) : les limiteurs
+  nommés remplacent les seuils anonymes, chaque parcours a son propre
+  compte.
+- Attention aux N+1, contrôlée par un test :
+  `tests/Feature/Performance/QueryBudgetTest.php` rejoue chaque écran de
+  liste avec un jeu de données réduit puis élargi et exige le **même**
+  nombre de requêtes. Tout écran de liste utilise `with()` /
+  `withCount()` pour les relations qu'il affiche.
+- Tâches lourdes en queue : exports (voir §19).
 
 ## 11. UI (Design System §91)
 
@@ -446,3 +470,149 @@ ExportContent                → catalogue(), build(), tables()
 - **Scheduler.** `routes/console.php` planifie `boulangerie:exports-prune`
   chaque jour à 03:15 (cahier §40) ; la commande supprime les fichiers
   avant les lignes.
+
+## 20. Sécurité du compte et limitation de débit
+
+```
+SecurityController           → /settings/security (aucune permission : soi-même)
+TwoFactorChallengeController → /two-factor/challenge (défi, 5 essais/min)
+EnsureTwoFactorIsVerified    → middleware du groupe web
+Totp (Support)               → secret() / code() / verify() / provisioningUri()
+TwoFactorService             → begin() / confirm() / verify() / disable()
+```
+
+- **2FA optionnelle, TOTP (cahier §31).** `App\Support\Totp` implémente la
+  RFC 6238 (HMAC-SHA1, secret Base32 de 160 bits, période 30 s, 6 chiffres,
+  tolérance ±1 période) et est validée par les vecteurs de la RFC : les
+  codes de Google Authenticator, Authy et 1Password sont acceptés.
+  `TwoFactorService` porte le cycle de vie : `begin()` pose un secret sans
+  activer la protection, `confirm()` valide un premier code et remet les 8
+  codes de secours (montrés une seule fois), `verify()` accepte un code TOTP
+  ou un code de secours — consommé à l'usage —, `disable()` remet à zéro.
+- **Chiffrement au repos.** Le secret et les codes de secours sont chiffrés
+  par les casts `encrypted` / `encrypted:array` du modèle `User`, les codes
+  étant en outre hachés. Les quatre colonnes sont exclues de
+  `AuditLogger::SENSITIVE` et jamais journalisées.
+- **Fermeture par défaut.** `EnsureTwoFactorIsVerified` (groupe `web`) : un
+  compte protégé n'atteint aucune page applicative avant d'avoir franchi le
+  défi — seules les routes de sortie (défi, déconnexion, mot de passe
+  oublié) restent joignables. Le repère vit en **session** et porte
+  l'identifiant du compte vérifié : il ne se transmet pas d'un utilisateur à
+  l'autre et ne survit pas à une nouvelle session.
+- **Changement de protection = mot de passe.** Activer, désactiver ou
+  régénérer les codes exige le mot de passe courant
+  (`TwoFactorPasswordRequest`, règle `current_password`) : une session
+  laissée ouverte ne suffit pas à retirer la protection.
+- **Limitation de débit nommée** (`AppServiceProvider`) : `login`
+  (20/min par IP, plus 5 échecs par compte dans `LoginRequest`),
+  `two-factor` (5/min par compte), `password-reset` (6/min par IP sur la
+  demande **et** la réinitialisation), `exports` (10/min par compte).
+- **Sauvegardes.** `docs/SAUVEGARDES.md` porte la stratégie d'exploitation
+  (script `mysqldump` + `tar` + `rsync`, rétention 7 / 4 / 12, journal CSV,
+  restauration testée trimestriellement, procédure de reprise). La
+  sauvegarde doit inclure l'`APP_KEY` : sans elle, les données chiffrées
+  (2FA) sont illisibles (ADR-022).
+
+## 21. Transferts inter-sites
+
+```
+StockTransferController → /inventory/transfers (index/create/store/show)
+                       → …/{transfer}/send · /receive · /cancel
+StockTransferService   → create() / send() / receive() / cancel()
+LotService             → transferFromLots() / transferFromBatch() / createFromTransfer()
+Route::bind('transfer')→ 404 hors des sites accessibles
+StockTransfer (modèle) → deux sites, sans BelongsToBakery
+```
+
+- **Objet à deux sites (cahier §19.3, ADR-023).** `stock_transfers` porte
+  l'expéditeur (`bakery_id`) et le destinataire
+  (`destination_bakery_id`) : le modèle n'utilise ni le scope global ni le
+  trait `BelongsToBakery`. La visibilité est assurée par le scope
+  `involvingAny($siteIds)` (source **ou** destination) et par un
+  `Route::bind('transfer', …)` qui restreint la résolution de route aux
+  sites accessibles : un transfert étranger renvoie 404.
+- **Cycle en deux temps.** `create()` prépare un brouillon (aucun
+  mouvement). `send()` crée la sortie `transfer_out` chez l'expéditeur,
+  impute le lot désigné — sinon les lots en FEFO (`transferFromLots`,
+  lots expirés exclus) — puis passe le document en `sent`. `receive()`
+  crée l'entrée `transfer_in` chez le destinataire et, si un lot a été
+  désigné, en fait renaître un chez le destinataire avec les mêmes dates
+  (`createFromTransfer`). `cancel()` n'est ouvert qu'à un brouillon.
+- **Idempotence et concurrence.** Chaque mouvement porte une clé dérivée
+  du transfert (`transfer:{id}:out` / `:in`) ; le document est verrouillé
+  (`lockForUpdate`) et son statut est vérifié dans la transaction :
+  rejouer une expédition ou une réception ne duplique ni le stock ni le
+  lot. L'ordre de verrouillage reste « **lots puis stock** », comme les
+  ventes, les pertes et la péremption. `tests/Feature/Inventory/StockTransferTest`
+  couvre les scénarios de concurrence : deux expéditions ou deux
+  réceptions simultanées ne passent qu'une fois, et un rejeu sur un état
+  périmé (statut relu sous verrou) est refusé.
+- **Invariant des lots.** Un lot qui part voit son `available_quantity`
+  diminuer et son `transferred_quantity` (nouvelle colonne) augmenter : la
+  somme `disponible + vendu + perdu + transféré` reste égale à la quantité
+  initiale. Le lot d'origine n'est jamais supprimé (cahier §53-11).
+- **Permissions.** `transfer.view`, `transfer.create` (préparer et
+  expédier depuis la source) et `transfer.receive` (réceptionner au
+  destinataire) ; le Responsable production les porte toutes, le
+  Responsable vente porte `transfer.view` et `transfer.receive`.
+
+---
+
+## 22. Recherche globale et coquille Alpine
+
+### Coquille applicative
+
+`resources/views/components/layout/app-shell.blade.php` est la **racine
+Alpine** de toutes les pages applicatives : elle porte `x-data`.
+
+Alpine n'initialise que les sous-arbres dont la racine porte `x-data` — ou
+un composant Livewire (`wire:id`), Livewire déclarant ses racines via
+`Alpine.addRootSelector('[wire:id]')`. Une directive écrite en dehors de ces
+racines n'est **jamais liée**, sans aucun message d'erreur. C'est ce qui
+rendait le bouton du menu mobile inopérant : son `@click` vivait dans la
+topbar, sous aucune racine Alpine. Le test
+`tests/Feature/Design/AlpineRootTest.php` rejoue le contrôle sur le rendu
+réel : toute directive `x-*`, `@…` ou `:…` doit avoir un ancêtre `x-data`
+ou `wire:id`.
+
+La navigation mobile reste pilotée par un événement global
+(`$dispatch('toggle-sidebar')` → `@toggle-sidebar.window` côté `aside`) :
+la topbar et la barre latérale sont des composants indépendants qui ne
+partagent pas de portée Alpine.
+
+### Palette de recherche globale
+
+- **Déclencheur.** Le bouton « Recherche » de la topbar
+  (`@click="$dispatch('open-global-search')"`) ouvre la palette ; `Ctrl K` /
+  `Cmd K` fait de même, `Échap` ferme.
+- **Composant.** `App\Livewire\Search\GlobalSearch` + vue
+  `resources/views/livewire/search/global-search.blade.php`. Le panneau est
+  monté à la racine de la coquille — et non dans la topbar — pour échapper
+  au contexte d'empilement de l'en-tête collant. La visibilité passe par une
+  bascule de classe (`:class="open ? 'flex' : 'hidden'"`) et non par
+  `x-show` : Alpine diffère l'affichage par `setTimeout`, ce qui empêche le
+  focus immédiat du champ.
+- **Moteur.** `App\Domain\Search\GlobalSearchService` interroge dix groupes
+  (produits, clients, grossistes, fournisseurs, employés, ventes, transferts,
+  pertes, commandes d'achat, ordres de production) avec les scopes
+  `search()` déjà utilisés par les écrans de liste. Deux règles sont
+  appliquées **côté serveur** :
+  1. **permissions** — un groupe n'est interrogé que si l'utilisateur porte
+     la permission du module (`product.view`, `customer.view`,
+     `transfer.view`, …). Le caissier ne déclenche donc aucune requête sur
+     le catalogue produits ;
+  2. **isolation par site** — les modèles `BelongsToBakery` passent par
+     `BakeryScope` (donc par le site courant, fail-closed). `StockTransfer`
+     n'ayant pas de scope global, il est filtré explicitement par
+     `involvingAny()` sur les sites accessibles, comme la liste des
+     transferts.
+- **Rendu.** Le service ne renvoie ni modèle ni identifiant : chaque
+  résultat est déjà résolu en titre, sous-titre, méta et URL. Le navigateur
+  ne reçoit rien d'autre que ce qui a été filtré, et les libellés sont
+  échappés par Blade (test dédié sur un nom de produit contenant
+  `<script>`).
+- **Garde-fous.** Terme minimum de 2 caractères, terme borné à 64
+  caractères, plafond de 5 résultats par groupe, groupe vide masqué.
+- **Rafraîchissement.** `wire:model.live.debounce.300ms` : la frappe
+  déclenche une requête Livewire débattue, les résultats se recalculent
+  sans quitter la page.

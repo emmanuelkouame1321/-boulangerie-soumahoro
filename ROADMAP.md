@@ -235,6 +235,10 @@ elle ne peut pas être validée deux fois. ✅
       `ProductSelector`, `Stepper`, `ConfirmDialog` (impact affiché)
 - [x] Tests unitaires : recette, rendement, écart, coût
 - [x] Tests : production insuffisante bloquée avec message clair
+- [x] Création et modification de recettes depuis `/production/recipes`
+      (ADR-025) : produit fini, rendement par lot, durées, pertes autorisées
+      et ressources avec mode de déduction ; duplication par `?from={id}`
+      (`StoreRecipeRequest`/`UpdateRecipeRequest`, `permission:recipe.manage`)
 
 **Critère atteint (cahier §50) :** recette configurable, matières calculées,
 rendement configurable, écarts calculés et motivés. ✅
@@ -378,29 +382,93 @@ conservés).
       arrière-plan (`GenerateExport`), écran « Téléchargements »
       (`/exports`) avec statuts, téléchargement réservé au demandeur et
       purge planifiée `boulangerie:exports-prune`
-- [~] Index sur les colonnes de recherche : index composé
-      `[bakery_id, occurred_at]` sur `stock_movements` et
-      `[bakery_id, created_at]` sur `audit_logs` (les index de `products`,
-      `sales`, `customers`, `suppliers`, `employees`, `wholesalers`
-      existaient déjà) ; le cache de configuration et de navigation
-      reste à faire, les rapports ne sont pas cachés (décision du
-      propriétaire)
+- [x] Performance : index de recherche (`[bakery_id, occurred_at]` sur
+      `stock_movements` et `[bakery_id, created_at]` sur `audit_logs` ; les
+      index de `products`, `sales`, `customers`, `suppliers`, `employees`,
+      `wholesalers` existaient déjà), cache des données de configuration
+      (`App\Support\Configuration`) et de l'arbre de navigation
+      (`App\Support\Navigation`) — clés indexées par le contenu configuré
+      et la table des routes, donc sans purge manuelle —, et N+1 corrigés
+      (paiements des ventes, chiffre d'affaires par site et tendance du
+      tableau de bord) avec un garde-fou
+      `tests/Feature/Performance/QueryBudgetTest.php`. Les rapports ne
+      sont pas cachés (décision du propriétaire, ADR-021)
 - [x] Audit avancé : `audit_logs` (utilisateur, action, objet, ancienne et
       nouvelle valeur, IP, date, site), journalisation automatique des
       11 modèles critiques + des changements de permissions, écran
       Audit filtrable avec détail des valeurs
-- [ ] 2FA optionnelle, rate limiting (limitation du login en place),
-      sauvegardes documentées
-- [ ] Transferts inter-sites (cahier §19.3)
-- [ ] Revue responsive complète (1440 / 1280 / 1024 / 768 / 390 — §89)
+- [x] 2FA optionnelle (TOTP RFC 6238 implémenté dans le projet,
+      `App\Support\Totp` + `App\Domain\Security\TwoFactorService`, écran
+      `/settings/security`, codes de secours chiffrés), limitation de débit
+      nommée (`login`, `two-factor`, `password-reset`, `exports`) et
+      stratégie de sauvegarde documentée (`docs/SAUVEGARDES.md` : script,
+      rétention, restauration testée, reprise après incident) — ADR-022
+- [x] Transferts inter-sites (cahier §19.3, ADR-023) : `stock_transfers`
+      reliant deux sites, cycle brouillon → expédié (sortie `transfer_out`
+      chez l'expéditeur) → reçu (entrée `transfer_in` chez le destinataire),
+      lot suivi recréé chez le destinataire avec la même date limite,
+      isolation explicite (404 hors des sites accessibles),
+      permissions `transfer.view` / `transfer.create` / `transfer.receive`,
+      écrans `/inventory/transfers`
+- [x] Recherche globale (cahier §10, ADR-024) : palette ouverte depuis la
+      topbar (`Ctrl K`, `Échap`), moteur serveur
+      `App\Domain\Search\GlobalSearchService` sur dix groupes (produits,
+      clients, grossistes, fournisseurs, employés, ventes, transferts,
+      pertes, achats, production) filtrés par permission **et** par site,
+      résultats recalculés à la frappe (`wire:model.live.debounce.300ms`),
+      bornes 2/64 caractères et 5 résultats par groupe — et correctif du menu
+      burger mobile : la coquille applicative est désormais la racine Alpine
+      (garde-fou `tests/Feature/Design/AlpineRootTest.php`)
+- [x] Photos de produit (cahier §4.2, ADR-030) : champ `photo` sur le
+      formulaire (aperçu 96 px, remplacement, case de suppression), stockage
+      sur le disque `public` dans `products/` — validation `image` + 4 Mo,
+      fichier retiré **après** la mise à jour réussie —, vignette au catalogue
+      (icône `package` en repli) ; `Product::photoUrl()`, lien
+      `php artisan storage:link` ajouté à `composer setup` et au README
+- [x] Carte produit de la caisse restructurée (ADR-031) : conteneur bordé avec
+      fond de surface, photo carré plein cadre (`object-cover`, emoji en
+      repli), nom / prix / état du stock hiérarchisés sans chevauchement
+- [x] Identité du site (ADR-032) : nom modifiable depuis l'administration,
+      **logo** du site (`bakeries.logo_path`, disque `public`, dossier
+      `bakeries/`) téléversé depuis `/settings/bakeries` (aperçu,
+      remplacement, suppression), bandeau « Identité du site » sur le
+      tableau de bord avec raccourci vers le formulaire, logo affiché dans la
+      liste des sites et la barre latérale (repli sur l'initiale), et
+      **favicon** = logo du site actif (`App\Support\Branding::faviconUrl()`,
+      repli sur le premier site accessible puis sur `favicon.ico` livré)
+- [x] Identité du site déplacée dans les **Paramètres** (ADR-033) : la carte
+      « Informations du site » de `/settings` porte la fiche réelle du site
+      courant (nom, code, adresse, téléphone, logo, aperçu et suppression du
+      logo) et l'enregistre via `PUT /settings/site` ; l'écran n'est éditable
+      que par qui peut `update` la boulangerie — Super-Admin seul
+      (`BakeryPolicy`, revérifiée côté serveur, le site venant du contexte de
+      site et jamais du formulaire), les autres rôles le lisant en lecture
+      seule. La persistance vit dans
+      `App\Domain\Sites\BakeryProfileService`, partagé avec
+      l'administration des sites (`/settings/bakeries`)
+- [~] Revue responsive complète (1440 / 1280 / 1024 / 768 / 390 — §89) :
+      caisse (POS) corrigée sur mobile — panier en tiroir + barre d'action
+      fixe, catégories en défilement horizontal (ADR-028) ; tableaux de données
+      en cartes empilées sous `md`, libellés de colonnes en variables CSS
+      (ADR-029)
+- [~] Revue responsive des autres écrans (formulaires, rapports) : tableaux de
+      données traités (ADR-029) ; restent les formulaires et les rapports
 - [ ] Audit d'accessibilité WCAG 2.2 AA
-- [~] Couverture de tests complète : 247 tests verts sur les parcours
-      unitaires, fonctionnels et d'intégration ; les scénarios de
-      concurrence restent à ajouter
+- [~] Couverture de tests complète : 372 tests (1535 assertions) sur les
+      parcours unitaires, fonctionnels et d'intégration — 370 verts
+      localement, les 2 restants n'échouent que sans l'extension GD
+      (`ProductPhotoTest`) ; les scénarios de
+      concurrence couvrent désormais les transferts (deux expéditions /
+      réceptions simultanées, état périmé) et un test de cohérence
+      (`StockCoherenceTest`) réconcilie le stock matérialisé avec le grand
+      livre et vérifie l'invariant des lots — les autres modules restent
+      à compléter
 - [ ] Documentation d'exploitation
 
-Voir ADR-021 pour l'arbitrage (exports en queue, audit automatique
-opt-in, canaux de notification).
+Voir ADR-021 (exports en queue, audit automatique opt-in, canaux de
+notification), ADR-022 (2FA, limitation de débit, sauvegardes),
+ADR-023 (transferts inter-sites), ADR-032 (logo de site et favicon) et
+ADR-033 (identité du site dans les paramètres).
 
 **Critère de sortie :** `composer ci` vert, checklist §89 entièrement
 cochée, critère final §90 satisfait.

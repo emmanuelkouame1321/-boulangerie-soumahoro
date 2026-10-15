@@ -37,10 +37,15 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
      * Get the attributes that should be cast.
+     *
+     * Le secret TOTP et les codes de secours (hachés) sont chiffrés au
+     * repos : la base ne les contient jamais en clair (cahier §31).
      *
      * @return array<string, string>
      */
@@ -49,6 +54,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 

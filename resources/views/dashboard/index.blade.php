@@ -18,12 +18,47 @@
         description="{{ $titles['description'] }}"
     >
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="bar-chart-3" :href="route('reports.index')">Rapports</x-ui.button>
+            @can('report.view')
+                <x-ui.button variant="secondary" icon="bar-chart-3" :href="route('reports.index')">Rapports</x-ui.button>
+            @endcan
             <x-ui.button variant="primary" icon="scan-barcode" :href="route('pos')">Ouvrir la caisse</x-ui.button>
         </x-slot:actions>
     </x-layout.page-header>
 
     <div class="space-y-4">
+        {{-- Identité du site : nom, logo et accès direct aux paramètres
+             (ADR-033 — la modification n'est ouverte qu'au Super-Admin).
+             Visible seulement quand un site précis est ouvert. --}}
+        @if ($bakery !== null)
+            <section aria-label="Identité du site">
+                <x-ui.card>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-subtle text-lg font-extrabold text-brand-700">
+                            @if ($bakery->logoUrl() !== null)
+                                <img src="{{ $bakery->logoUrl() }}" alt="Logo de {{ $bakery->name }}" class="size-full object-cover">
+                            @else
+                                {{ $bakery->initial() }}
+                            @endif
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <p class="label-caps text-muted">Site courant</p>
+                            <p class="truncate text-lg font-extrabold text-ink">{{ $bakery->name }}</p>
+                            <p class="truncate text-xs text-muted">
+                                {{ $bakery->code }}@if ($bakery->address) · {{ $bakery->address }} @endif
+                            </p>
+                        </div>
+
+                        @can('settings.view')
+                            <x-ui.button variant="secondary" icon="settings" :href="route('settings.index')">
+                                Paramètres du site
+                            </x-ui.button>
+                        @endcan
+                    </div>
+                </x-ui.card>
+            </section>
+        @endif
+
         <section aria-label="Indicateurs clés du jour">
             <div class="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
                 <x-ui.stat-card label="CA du jour" :value="Format::money($salesToday['revenue'])" icon="banknote" />
@@ -103,7 +138,12 @@
                 <x-ui.stat-card label="Produit aujourd'hui" :value="Format::stock($productionToday['produced'])" />
                 <x-ui.stat-card label="Attendu" :value="Format::stock($productionToday['expected'])" />
                 <x-ui.stat-card label="Écart" :value="Format::signed($productionToday['gap'])" />
-                <x-ui.stat-card label="Produits sous seuil" :value="Format::number($stock['below_threshold'])" trend-tone="warning" />
+                <x-ui.stat-card
+                    label="Produits sous seuil"
+                    :value="Format::number($stock['below_threshold'])"
+                    trend-tone="warning"
+                    :href="route('inventory.index', ['state' => 'low'])"
+                />
             </div>
 
             <x-ui.card title="Stock de matières" subtitle="Valorisation au coût d'achat." flush>

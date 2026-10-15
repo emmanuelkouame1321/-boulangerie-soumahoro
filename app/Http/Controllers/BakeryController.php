@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Sites\BakeryProfileService;
 use App\Enums\BakeryStatus;
 use App\Http\Requests\StoreBakeryRequest;
 use App\Http\Requests\UpdateBakeryRequest;
@@ -18,12 +19,17 @@ use Illuminate\View\View;
  * Administration des boulangeries (cahier §19).
  *
  * Contrôleur mince : validation déléguée aux Form Requests, autorisation
- * aux Policies, persistance à Eloquent. Les règles métier de site
- * (isolation, contexte courant) vivent dans App\Domain\Sites.
+ * aux Policies, persistance à BakeryProfileService. Les règles métier de
+ * site (identité, logo, isolation, contexte courant) vivent dans
+ * App\Domain\Sites.
  */
 class BakeryController extends Controller
 {
     private const PER_PAGE = 15;
+
+    public function __construct(
+        private readonly BakeryProfileService $profiles,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -63,7 +69,7 @@ class BakeryController extends Controller
 
     public function store(StoreBakeryRequest $request): RedirectResponse
     {
-        $bakery = Bakery::create($request->validated());
+        $bakery = $this->profiles->create($request->validated(), $request->file('logo'));
 
         return redirect()
             ->route('bakeries.index')
@@ -82,7 +88,12 @@ class BakeryController extends Controller
 
     public function update(UpdateBakeryRequest $request, Bakery $bakery): RedirectResponse
     {
-        $bakery->update($request->validated());
+        $this->profiles->update(
+            $bakery,
+            $request->validated(),
+            $request->file('logo'),
+            $request->boolean('remove_logo'),
+        );
 
         return redirect()
             ->route('bakeries.index')

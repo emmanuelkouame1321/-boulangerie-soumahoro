@@ -10,6 +10,9 @@
     >
         <x-slot:actions>
             <x-ui.button variant="ghost" icon="arrow-left" :href="route('production.index')">Retour</x-ui.button>
+            @if ($canManage)
+                <x-ui.button variant="primary" icon="plus" :href="route('production.recipes.create')">Nouvelle recette</x-ui.button>
+            @endif
         </x-slot:actions>
     </x-layout.page-header>
 
@@ -34,7 +37,24 @@
     @else
         <div class="space-y-4">
             @foreach ($recipes as $recipe)
-                <x-business.recipe-preview :recipe="$recipe" :batches="1" />
+                <x-business.recipe-preview :recipe="$recipe" :batches="1">
+                    @if ($canManage)
+                        <x-slot:actions>
+                            <x-ui.button
+                                variant="ghost"
+                                size="sm"
+                                icon="pen"
+                                :href="route('production.recipes.edit', $recipe)"
+                            >Modifier</x-ui.button>
+                            <x-ui.button
+                                variant="ghost"
+                                size="sm"
+                                icon="copy"
+                                :href="route('production.recipes.create', ['from' => $recipe->id])"
+                            >Dupliquer</x-ui.button>
+                        </x-slot:actions>
+                    @endif
+                </x-business.recipe-preview>
             @endforeach
 
             <div>

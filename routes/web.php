@@ -22,9 +22,12 @@ use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SecurityController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockAlertController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UnitConversionController;
@@ -63,6 +66,24 @@ Route::middleware('auth')->group(function (): void {
         ->name('production.recipes.index')
         ->middleware('permission:recipe.view');
 
+    Route::get('/production/recipes/create', [RecipeController::class, 'create'])
+        ->name('production.recipes.create')
+        ->middleware('permission:recipe.manage');
+
+    Route::post('/production/recipes', [RecipeController::class, 'store'])
+        ->name('production.recipes.store')
+        ->middleware('permission:recipe.manage');
+
+    Route::get('/production/recipes/{recipe}/edit', [RecipeController::class, 'edit'])
+        ->name('production.recipes.edit')
+        ->whereNumber('recipe')
+        ->middleware('permission:recipe.manage');
+
+    Route::put('/production/recipes/{recipe}', [RecipeController::class, 'update'])
+        ->name('production.recipes.update')
+        ->whereNumber('recipe')
+        ->middleware('permission:recipe.manage');
+
     Route::get('/production/create', [ProductionOrderController::class, 'create'])
         ->name('production.create')
         ->middleware('permission:production.create');
@@ -88,6 +109,39 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])
         ->name('inventory.adjustments.store')
         ->middleware('permission:inventory.adjust');
+
+    // Transferts inter-sites (cahier §19.3) : brouillon → expédié → reçu.
+    Route::get('/inventory/transfers', [StockTransferController::class, 'index'])
+        ->name('inventory.transfers.index')
+        ->middleware('permission:transfer.view');
+
+    Route::get('/inventory/transfers/create', [StockTransferController::class, 'create'])
+        ->name('inventory.transfers.create')
+        ->middleware('permission:transfer.create');
+
+    Route::post('/inventory/transfers', [StockTransferController::class, 'store'])
+        ->name('inventory.transfers.store')
+        ->middleware('permission:transfer.create');
+
+    Route::get('/inventory/transfers/{transfer}', [StockTransferController::class, 'show'])
+        ->name('inventory.transfers.show')
+        ->whereNumber('transfer')
+        ->middleware('permission:transfer.view');
+
+    Route::post('/inventory/transfers/{transfer}/send', [StockTransferController::class, 'send'])
+        ->name('inventory.transfers.send')
+        ->whereNumber('transfer')
+        ->middleware('permission:transfer.create');
+
+    Route::post('/inventory/transfers/{transfer}/receive', [StockTransferController::class, 'receive'])
+        ->name('inventory.transfers.receive')
+        ->whereNumber('transfer')
+        ->middleware('permission:transfer.receive');
+
+    Route::post('/inventory/transfers/{transfer}/cancel', [StockTransferController::class, 'cancel'])
+        ->name('inventory.transfers.cancel')
+        ->whereNumber('transfer')
+        ->middleware('permission:transfer.create');
     // Achats : fournisseurs, commandes, réception (cahier §10 et §11).
     Route::get('/purchasing/orders', [PurchaseOrderController::class, 'index'])
         ->name('purchasing.orders.index')
@@ -384,7 +438,9 @@ Route::middleware('auth')->group(function (): void {
 
     // Exports en arrière-plan (cahier §48, file d'attente §53-13).
     Route::get('/exports', [ExportController::class, 'index'])->name('exports.index');
-    Route::post('/exports', [ExportController::class, 'store'])->name('exports.store');
+    Route::post('/exports', [ExportController::class, 'store'])
+        ->middleware('throttle:exports')
+        ->name('exports.store');
     Route::get('/exports/{export}/download', [ExportController::class, 'download'])
         ->name('exports.download')
         ->whereNumber('export');
@@ -397,8 +453,32 @@ Route::middleware('auth')->group(function (): void {
         ->whereNumber('alert')
         ->middleware('permission:alert.acknowledge');
 
+    // Sécurité du compte (cahier §31) — libre-service : chaque utilisateur
+    // protège son propre accès, sans permission particulière.
+    Route::get('/settings/security', [SecurityController::class, 'index'])
+        ->name('settings.security.index');
+    Route::post('/settings/security/two-factor', [SecurityController::class, 'enable'])
+        ->name('settings.security.enable');
+    Route::post('/settings/security/two-factor/confirm', [SecurityController::class, 'confirm'])
+        ->name('settings.security.confirm');
+    Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])
+        ->name('settings.security.disable');
+    Route::post('/settings/security/recovery-codes', [SecurityController::class, 'regenerateRecoveryCodes'])
+        ->name('settings.security.recovery-codes');
+
     // Administration
-    Route::view('/settings', 'settings.index')->name('settings.index')->middleware('permission:settings.view');
+    Route::get('/settings', [SettingsController::class, 'index'])
+        ->name('settings.index')
+        ->middleware('permission:settings.view');
+
+    // Identité du site courant (cahier §19.2, ADR-033) : la modification est
+    // réservée au Super-Admin — la Policy est revérifiée côté serveur par la
+    // Form Request, le site visé venant du contexte de site, jamais du
+    // formulaire.
+    Route::put('/settings/site', [SettingsController::class, 'updateSite'])
+        ->name('settings.site.update')
+        ->middleware('permission:bakery.update');
+
     Route::get('/settings/audit', [AuditLogController::class, 'index'])->name('settings.audit.index')->middleware('permission:audit.view');
 
     // Préférences de notification (cahier §22).
@@ -421,6 +501,11 @@ Route::middleware('auth')->group(function (): void {
         ->names('settings.roles')
         ->whereNumber('role')
         ->middleware('permission:role.view');
+
+    // Génération d'un code produit (SKU) depuis le formulaire (cahier §4.2).
+    Route::get('/products/generate-sku', [ProductController::class, 'generateSku'])
+        ->name('products.generate-sku')
+        ->middleware('permission:product.view');
 
     // Catalogue produits et matières premières (cahier §4).
     Route::resource('products', ProductController::class)

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Produit ou matière première (cahier §4).
@@ -120,6 +121,18 @@ class Product extends Model
     public function isStockable(): bool
     {
         return $this->type->isStockable();
+    }
+
+    /**
+     * URL publique de la photo du produit, ou null si le produit n'en a pas.
+     */
+    public function photoUrl(): ?string
+    {
+        if ($this->photo_path === null) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->photo_path);
     }
 
     /**

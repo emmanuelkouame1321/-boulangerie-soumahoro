@@ -26,11 +26,20 @@
         <x-ui.alert tone="danger" class="mb-4">{{ session('error') }}</x-ui.alert>
     @endif
 
+    @php
+        // Chaque compteur renvoie vers la liste filtrée correspondante,
+        // en conservant la recherche en cours.
+        $stateUrl = static fn (string $state): string => route('inventory.index', array_filter(
+            ['state' => $state, 'search' => $search],
+            static fn (string $value): bool => $value !== '',
+        ));
+    @endphp
+
     <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
-            <x-ui.stat-card label="Produits suivis" :value="Format::number($counts['tracked'])" unit="références" icon="boxes" />
-            <x-ui.stat-card label="Stock faible" :value="Format::number($counts['low'])" trend="à surveiller" trend-tone="warning" icon="triangle-alert" />
-            <x-ui.stat-card label="Critique" :value="Format::number($counts['critical'])" trend="action requise" trend-tone="danger" icon="octagon-alert" />
+            <x-ui.stat-card label="Produits suivis" :value="Format::number($counts['tracked'])" unit="références" icon="boxes" :href="$stateUrl('')" />
+            <x-ui.stat-card label="Stock faible" :value="Format::number($counts['low'])" trend="à surveiller" trend-tone="warning" icon="triangle-alert" :href="$stateUrl('low')" />
+            <x-ui.stat-card label="Critique" :value="Format::number($counts['critical'])" trend="action requise" trend-tone="danger" icon="octagon-alert" :href="$stateUrl('critical')" />
             <x-ui.stat-card label="Réservé" :value="Format::stock($counts['reserved'])" unit="unités" icon="package" />
         </div>
 

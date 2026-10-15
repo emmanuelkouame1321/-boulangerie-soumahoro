@@ -672,10 +672,30 @@ entrée qui la remplace.
      site** ayant `alert.view` ; WhatsApp/SMS reste une extension
      future. L'écran `/settings/notifications` est sous `settings.view`
      (c'est une politique de site, pas un réglage individuel).
-  5. **Pas de cache sur les rapports.** Le cache reste réservé à la
-     configuration et à la navigation : un rapport mis en cache
-     masquerait une vente du jour, alors que le volume actuel ne le
-     justifie pas (ADR-020).
+  5. **Cache de configuration et de navigation, jamais des rapports.**
+     Ce qui coûte cher à chaque requête est mémorisé : l'arbre de menu
+     résolu (`App\Support\Navigation` — vérifier que la route de chaque
+     entrée existe parcourt toute la table des routes) et les structures
+     dérivées de la configuration (`App\Support\Configuration` — plan de
+     permissions groupé par module, libellés et permissions des rôles,
+     reconstruits par les écrans de rôles et d'utilisateurs). Les clés de
+     cache sont **indexées par le contenu** (empreinte de
+     `config/boulangerie.php`, empreinte de `config/navigation.php` et de
+     la table des routes) : une modification produit une nouvelle clé, il
+     n'y a donc ni purge manuelle, ni risque de servir du périmé. Le TTL
+     d'un jour ne sert qu'à nettoyer les anciennes clés. La partie
+     dépendant de l'utilisateur ou de l'URL (filtre par permission, état
+     « actif », URL absolue dont l'hôte dépend de la requête) n'est
+     jamais mémorisée. Aucun rapport, aucun agrégat métier n'est mis en
+     cache : un rapport en cache masquerait une vente du jour (ADR-020).
+  6. **Le N+1 est contrôlé par un test, pas par une intention.**
+     `tests/Feature/Performance/QueryBudgetTest.php` mesure le nombre de
+     requêtes d'un écran avec un jeu de données réduit, puis élargi, et
+     exige le même nombre : la propriété testée est « le coût ne dépend
+     pas du nombre de lignes », pas un budget chiffré qui vieillirait.
+     Les deux N+1 trouvés par ce test (mode de paiement de chaque vente,
+     chiffre d'affaires par site du tableau de bord) ont été corrigés en
+     requêtes uniques.
 - **Justification :** le travail en arrière-plan rend les gros exports
   utilisables sur un poste modeste et évite les délais d'attente HTTP ;
   l'audit opt-in garde le journal lisible (les tables de référence et
@@ -687,6 +707,491 @@ entrée qui la remplace.
   24 h. Les rapports restant recalculés à chaque affichage, une lenteur
   éventuelle se traiterait par un cache dédié (nouvel ADR), jamais par
   un cache silencieux.
+
+---
+
+## ADR-022 — 2FA TOTP sans dépendance, limitation de débit nommée, sauvegardes documentées
+
+- **Date :** 1er octobre 2026
+- **Statut :** acceptée
+- **Contexte :** le cahier §31 exige une authentification sécurisée, la
+  **2FA optionnelle**, une autorisation par permissions, la protection
+  CSRF/XSS/injection, le **rate limiting** et la journalisation des actions
+  sensibles ; §47 exige des sauvegardes (base, fichiers, rétention,
+  restauration testée, journal, reprise après incident). Le projet est
+  livré en autonomie et refuse les dépendances non auditables (ADR-020) :
+  ajouter un paquet de 2FA et un générateur de QR, ou un paquet de
+  sauvegarde, reviendrait à confier l'authentification et la conservation
+  des données à du code tiers non relu.
+- **Décisions :**
+  1. **TOTP implémenté dans le projet.** `App\Support\Totp` (RFC 6238 :
+     HMAC-SHA1, secret Base32 de 160 bits, période 30 s, 6 chiffres,
+     tolérance ±1 période pour les dérives d'horloge) est validé par les
+     **vecteurs de test de la RFC** — c'est ce qui garantit la
+     compatibilité avec Google Authenticator, Authy ou 1Password. Aucun
+     paquet externe.
+  2. **Pas de QR code embarqué.** L'activation affiche la clé par groupes
+     de quatre caractères et le lien `otpauth://` à saisir dans
+     l'application. Générer un QR exigerait soit une bibliothèque
+     d'encodage, soit un service en ligne — or un service en ligne
+     recevrait le secret du compte, ce qui est inacceptable. La saisie
+     manuelle est supportée par toutes les applications du marché.
+  3. **Le secret est chiffré au repos.** Le secret TOTP et les codes de
+     secours sont chiffrés par les casts `encrypted` du modèle `User`, les
+     codes de secours sont en outre hachés (`Hash::make`) et consommés à
+     l'usage, et les quatre colonnes correspondantes sont exclues de
+     `AuditLogger::SENSITIVE`. La sauvegarde de la base **doit** donc
+     inclure l'`APP_KEY` (docs/SAUVEGARDES.md §2).
+  4. **2FA en libre-service et fermée par défaut.** L'écran
+     `/settings/security` (aucune permission : chacun protège son propre
+     compte) exige le mot de passe courant pour activer, désactiver ou
+     régénérer les codes. Un enrôlement non confirmé ne verrouille pas le
+     compte. Le middleware `EnsureTwoFactorIsVerified` ferme toutes les
+     pages applicatives tant que le défi n'est pas franchi — sauf le défi,
+     la déconnexion et la réinitialisation de mot de passe, sans quoi
+     l'utilisateur serait enfermé.
+  5. **Limitation de débit nommée, par parcours.** `login` (20/min par IP,
+     plus 5 échecs par compte dans `LoginRequest`), `two-factor` (5/min par
+     compte — un code à six chiffres se devine en force brute),
+     `password-reset` (6/min par IP sur la demande **et** sur la
+     réinitialisation) et `exports` (10/min par compte : dix exports
+     mobilisent la file d'attente).
+  6. **Sauvegardes documentées, pas outillées.** `docs/SAUVEGARDES.md`
+     fixe les objectifs (RPO 24 h / 1 h avec binlog, RTO 2 h), le script
+     `mysqldump` + `tar` + `rsync` avec contrôle d'intégrité, la rétention
+     (7 quotidiennes / 4 hebdomadaires / 12 mensuelles), le journal CSV,
+     la procédure de restauration, le test trimestriel et la procédure de
+     reprise après incident. La sauvegarde reste une responsabilité
+     d'exploitation (cron + supervision), pas une fonctionnalité de
+     l'application : aucun paquet de sauvegarde n'est ajouté.
+- **Justification :** la 2FA protège l'accès sans dépendre d'une chaîne
+  SMS facturée et indisponible hors réseau ; l'implémentation maison reste
+  vérifiable contre la RFC ; le chiffrement au repos limite la portée d'une
+  fuite de base ; la limitation par parcours protège les seuls points
+  réellement attaquables ; documenter les sauvegardes rend la procédure
+  auditable et testable sans alourdir l'application.
+- **Conséquence :** le repère « second facteur franchi » vit en **session**
+  (aucun cookie « remember » de confiance) : une nouvelle session redemande
+  le code, ce qui est plus strict. L'horloge du serveur doit être à l'heure
+  (NTP) — une dérive de plus de 30 s ferait refuser des codes valides.
+  L'envoi d'un QR code, un canal SMS/WhatsApp et l'exigence de la 2FA pour
+  certains rôles restent ouverts : ils passeraient par un nouvel ADR.
+
+---
+
+## ADR-023 — Transferts inter-sites : objet à deux sites, sortie et entrée explicites
+
+- **Décision :** un transfert de stock relie **deux** boulangeries et se
+  matérialise par une ligne `stock_transfers` portant deux clés étrangères
+  (`bakery_id` expéditeur, `destination_bakery_id` destinataire), le
+  produit, la quantité, un lot facultatif, le motif, la date métier et le
+  cycle `draft → sent → received` (plus `cancelled` avant expédition).
+  L'expédition crée un mouvement `transfer_out` chez l'expéditeur, la
+  réception un mouvement `transfer_in` chez le destinataire ; les deux
+  passent par `StockMovementService::apply()` (seul écrivain du stock),
+  avec les clés d'idempotence `transfer:{id}:out` et `transfer:{id}:in`.
+- **Contexte :** le cahier §19.3 décrit « un transfert d'une boulangerie A
+  vers B, avec sortie chez A et entrée chez B, en brouillon puis expédié
+  puis reçu ». Le modèle `StockTransfer` ne peut pas utiliser le trait
+  `BelongsToBakery` : son scope global suppose **un** site, or un transfert
+  en concerne deux. L'isolation par site doit donc être explicite —
+  l'expéditeur voit le transfert (source) et le destinataire aussi, un
+  site tiers jamais.
+- **Justification :**
+  - la sortie n'a lieu qu'à l'expédition et l'entrée à la réception : le
+    stock n'est jamais « en l'air » sans trace (cahier §53-11) ;
+  - le lot suivi sort du site expéditeur (compteur `transferred_quantity`,
+    invariant `initial = disponible + vendu + perdu + transféré` conservé)
+    et **renaît** chez le destinataire avec les mêmes dates de production
+    et de limite de vente — sans quoi le produit arriverait sans traçabilité
+    et pourrait être vendu après péremption. Le lot d'origine n'est jamais
+    déplacé : l'historique du site expéditeur reste intact ;
+  - un transfert expédié ou reçu ne se supprime pas : il se corrige par un
+    transfert inverse ou un ajustement motivé (cahier §53-11).
+- **Conséquence :**
+  - la résolution de route est bornée aux sites accessibles à
+    l'utilisateur (`Route::bind('transfer', …)` dans `AppServiceProvider`) :
+    un lien direct vers un transfert étranger renvoie **404**, comme les
+    modèles isolés par le scope global, et non 403 ;
+  - la Policy distingue les rôles : `transfer.view` pour consulter,
+    `transfer.create` pour préparer **et expédier depuis le site
+    expéditeur**, `transfer.receive` pour réceptionner **au site
+    destinataire**. Le Super-Admin passe par `Gate::before` ;
+  - la navigation gagne l'entrée « Transferts » (`inventory/transfers`),
+    visible avec `transfer.view` ;
+  - le destinataire reste sélectionnable parmi **tous** les sites actifs
+    (un transfert relie deux sites, le réceptionnaire n'appartient pas
+    forcément à l'équipe de l'expéditeur).
+
+---
+
+## ADR-024 — Recherche globale : palette serveur, permissions par groupe, racine Alpine unique
+
+**Contexte.** La topbar affichait un bouton « Recherche globale » qui ne
+déclenchait qu'un message d'accueil : aucune recherche n'existait. En
+mobile, deux défauts visibles : le menu burger ne s'ouvrait pas et la
+recherche ne faisait rien.
+
+**Causes.** (1) Alpine n'initialise que les sous-arbres dont la racine porte
+`x-data` ou `wire:id` : le `@click` du bouton burger, seul élément
+d'interactivité de la coquille situé sous **aucune** racine Alpine, n'était
+jamais lié — sans aucune erreur. (2) Aucun moteur de recherche n'existait.
+
+**Décision.**
+- La coquille applicative (`x-layout.app-shell`) porte `x-data` : elle est
+  la racine Alpine de toutes les pages du gabarit applicatif. Un test
+  structural (`tests/Feature/Design/AlpineRootTest.php`) vérifie sur le
+  rendu réel que toute directive Alpine a un ancêtre `x-data`/`wire:id`.
+- La recherche globale est une **palette** ouverte depuis la topbar
+  (`$dispatch('open-global-search')`, `Ctrl K` / `Cmd K`, `Échap`), montée à
+  la racine de la coquille pour échapper au contexte d'empilement de
+  l'en-tête collant. Les résultats se recalculent à la frappe
+  (`wire:model.live.debounce.300ms`) : pas de page de résultats
+  intermédiaire, pas d'index plein texte.
+- Le moteur vit dans `App\Domain\Search\GlobalSearchService`. Il interroge
+  dix groupes avec les scopes `search()` existants et applique **côté
+  serveur** : permission du module (un groupe sans permission n'est pas
+  interrogé), isolation par site (`BakeryScope` pour les modèles rattachés à
+  un site, `involvingAny()` explicite pour `StockTransfer`). Le service ne
+  renvoie jamais de modèle ni d'identifiant : uniquement des chaînes déjà
+  résolues et des URL.
+- Bornes : 2 caractères minimum, 64 maximum, 5 résultats par groupe.
+- La visibilité du panneau utilise une bascule de classe et non `x-show` :
+  Alpine diffère l'affichage par `setTimeout`, ce qui rendait impossible le
+  focus immédiat du champ de saisie.
+
+**Conséquences.** Le client ne reçoit que des lignes autorisées — le filtrage
+n'est pas une commodité d'affichage. Ajouter un groupe de recherche = une
+méthode privée dans le service (permission + site + mapping d'affichage),
+sans toucher aux vues. La limite de 5 par groupe impose de préciser la
+requête plutôt que de parcourir la onzième ligne.
+
+**Alternatives écartées.** Page `/recherche` dédiée (un aller-retour de plus
+pour un usage de navigation rapide) ; index plein texte (MySQL FULLTEXT
+impose MyISAM/InnoDB avec index spécifique et une cohérence à maintenir,
+pour un besoin de sous-chaîne déjà couvert par les scopes `LIKE`) ;
+recherche Alpine côté client (données non autorisées envoyées au
+navigateur).
+
+---
+
+## ADR-025 — Création de recettes : formulaire unique, lignes dynamiques, duplication par `?from`
+
+**Contexte.** L'écran `/production/recipes` ne faisait que consulter le
+catalogue de nomenclatures ; les recettes étaient amorcées par le seeder
+(`RCP-PAIN`). Le besoin : créer une recette avec les mêmes réglages que le
+« pain traditionnel » (produit fini, rendement par lot, durées, pertes
+autorisées et ressources avec mode de déduction).
+
+**Décision.**
+- Routes `production.recipes.create` (GET) et `production.recipes.store`
+  (POST), protégées par `permission:recipe.manage` ; l'autorisation est
+  aussi vérifiée par `RecipePolicy::create`. L'index reste en `recipe.view`.
+- Un `StoreRecipeRequest` valide l'en-tête **et** les lignes : le produit
+  cible doit être un produit fini, chaque ressource doit être non finie,
+  le mode de déduction est un `RecipeDeductionMode`, et `unit_cost` est
+  `required_if` pour les modes monétaire/cumulé.
+- `RecipeController` reste mince : transaction `Recipe` + `RecipeItem`,
+  positions reindexées à partir de l'ordre soumis.
+- La duplication est un **pré-remplissage** (`create?from={id}`), pas un
+  nouvel endpoint : le formulaire est identique, la référence repart vierge
+  (unicité) et un bandeau indique la source. Un bouton « Dupliquer » sur
+  chaque carte de l'index y mène.
+- La **modification** (`edit`/`update`, `UpdateRecipeRequest`) réutilise le
+  même composant de formulaire (`x-production.recipe-form`). La nomenclature
+  est remplacée en bloc dans la transaction (`items()->delete()` puis
+  recréation) ; les productions déjà validées ne sont pas touchées, elles
+  ne référencent que `recipe_id` (`nullOnDelete`) et portent leurs propres
+  lignes. `UpdateRecipeRequest` ne rend l'unicité de la référence stricte
+  que vis-à-vis des **autres** recettes (`Rule::unique(...)->ignore(...)`).
+
+**Conséquences.** Aucune donnée n'est écrite sans repasser par le même
+chemin de validation. Les recettes restent partagées entre sites (pas de
+`bakery_id`), comme le catalogue produits. `unit_cost` nul sur une ressource
+physique signifie « prix d'achat du produit au moment de la consommation ».
+
+**Alternatives écartées.** Endpoint `/duplicate` dédié (duplique la logique
+d'un formulaire déjà complet) ; formulaire vierge seul (ne répond pas au
+« comme la recette du pain traditionnel »).
+
+---
+
+## ADR-026 — Catalogue scindé en deux familles : Produits et Matières premières
+
+**Contexte.** Le catalogue (`/products`) exposait six types (cahier §4.1) dans
+un simple menu déroulant. L'usage quotidien distingue surtout deux familles :
+les produits et les matières premières.
+
+**Décision.**
+- `ProductType::group()` range chaque type dans `products` (produit fini) ou
+  `materials` (tout le reste : matière première, semi-fini, consommable,
+  emballage, ressource) ; `ProductType::forGroup()` et `groups()` complètent
+  la correspondance. Les libellés viennent de `config('boulangerie.product_groups')`.
+- `/products` présente deux onglets avec compteurs (`group=products|materials`,
+  défaut `products`). Le lien d'onglet conserve la recherche et la catégorie.
+- Le filtre `type` est conservé mais **scopé à la famille active** : il
+  n'apparaît que si la famille compte plus d'un type (donc jamais dans
+  « Produits »).
+- Après création, on revient sur la famille du produit créé.
+- Le bouton « Nouveau produit » du catalogue ouvre une **modale** qui
+  demande la famille (Produits / Matières premières) ; le choix mène au
+  formulaire avec la famille et le type pré-sélectionnés (`?group=…`).
+- Le **formulaire** de création/édition demande d'abord la **famille**
+  (deux choix : Produits / Matières premières) ; la **nature** précise
+  (matière première, semi-fini, consommable, emballage, ressource)
+  n'apparaît que pour « Matières premières ». Le `type` enregistré en découle
+  (champ caché) : « Produits » fixe `produit fini`. Le formulaire s'ouvre par
+  défaut sur « Produits ».
+
+**Conséquences.** Aucune migration : le rangement est dérivé du `type`, jamais
+stocké. Les écrans et exports qui listent des produits restent inchangés ;
+seul l'écran catalogue change de présentation. La requête de comptage par
+famille reste constante (deux requêtes), sans dépendre du volume.
+
+**Alternatives écartées.** Ajouter un champ « famille » en base (dupliquerait
+le type, source d'incohérence) ; forcer deux types seulement (perte de la
+typologie fine du cahier) ; onglet unique avec sections défilantes (moins
+lisible au-delà de quelques dizaines de références).
+
+---
+
+## ADR-027 — Génération du code produit (SKU) depuis le formulaire
+
+**Contexte.** Le code produit est obligatoire et unique (cahier §4.2). Le
+saisir à la main pour chaque article est fastidieux et source de doublons.
+
+**Décision.**
+- `ProductType::skuPrefix()` fixe le préfixe de famille : `MP` (matière
+  première), `SF` (semi-fini), `PF` (produit fini), `CONS`, `EMB`, `RES`.
+- `GET /products/generate-sku?type=…&name=…` (`permission:product.view` +
+  policy `create`) renvoie un code **dérivé du nom** : préfixe de famille +
+  nom normalisé (accents translittérés via `Str::slug`, espaces en tirets,
+  majuscules), ex. `PF-BAGUETTE`, `MP-FARINE-50-KG`. Un suffixe numérique
+  n'est ajouté qu'en cas de collision (`PF-BAGUETTE-2`, `-3`…).
+- Le formulaire expose un bouton « Générer » (Alpine + `fetch`), désactivé
+  tant que le nom est vide ; il remplit le champ, qui reste éditable et
+  obligatoire.
+
+**Conséquences.** Le code proposé n'est **pas réservé** : il n'est jamais
+écrit en base par l'endpoint. L'unicité reste garantie par la validation
+`Rule::unique` à l'enregistrement (deux générations concurrentes peuvent
+suggérer le même code ; la seconde échoue et se régénère). Aucune table ni
+compteur séquentiel : le calcul est dérivé du nom et de l'existant.
+
+**Alternatives écartées.** Code strictement séquentiel `PREFIX-0001`
+(abandonné : un code dérivé du nom est plus lisible et rejoint la
+convention des codes existants `PF-BAGUETTE`, `MP-FARINE`) ; compteur
+auto-incrémenté en base (verrou et migration inutiles, risque de trous) ;
+génération purement côté client (aucune garantie d'unicité) ; SKU optionnel
+auto-généré à l'enregistrement (retire le contrôle de l'utilisateur sur les
+codes métier).
+
+---
+
+## ADR-028 — Caisse (POS) : panier en tiroir sur mobile
+
+**Contexte.** La caisse (`/caisse`) était conçue pour un écran large : le
+panier était `hidden lg:flex`. Sur téléphone, le panier — et donc le bouton
+« Payer » — était **inaccessible**, et les catégories occupaient une colonne
+verticale étroite.
+
+**Décision.**
+- Le panier est extrait dans un partiel
+  (`livewire/sales/partials/cart.blade.php`), rendu **deux fois** : colonne
+  fixe en `lg+`, tiroir bas en dessous. Les `wire:key` sont préfixés par un
+  `$scope` (`desktop`/`mobile`) pour éviter toute collision de morphing.
+- Sur mobile : catégories en **défilement horizontal**, header allégé
+  (badges de site/caissier masqués sous `md`), **barre d'action fixe** en bas
+  (total + « Panier » + « Payer ») et tiroir Alpine (`cartOpen`, `x-cloak`).
+- Le corps réserve `pb-24` sur mobile pour ne rien cacher sous la barre.
+- Le tiroir et la barre sont montés dans la **racine Alpine** du composant
+  (`x-data="{ cartOpen: false }"`, cf. ADR-024).
+
+**Conséquences.** La caisse reste pleine hauteur (`h-screen`) avec défilement
+interne des produits : l'en-tête et la barre d'action restent visibles.
+Aucune logique métier modifiée (mêmes méthodes Livewire).
+
+---
+
+## ADR-029 — Tableaux de données : cartes empilées sur mobile
+
+**Contexte.** `x-ui.data-table` — utilisé par 35 écrans — rend un `<table>`
+dans un `overflow-x-auto`. Sur téléphone, le tableau (jusqu'à ~810 px de
+large) ne tient pas dans les ~356 px utiles : défilement horizontal, colonnes
+coupées et libellés hors écran rendent la liste difficile à lire.
+
+**Décision.**
+- Sous `md` (`@media (max-width: 767px)`), chaque ligne devient une **carte** :
+  `thead` masqué, `tr` en bloc encadré, `td` en ligne « libellé / valeur ».
+  La **première cellule** fait office de titre de carte, sans libellé.
+- Le composant ne peut pas étiqueter le contenu du slot Blade : les libellés
+  de colonnes sont transmis en **variables CSS** (`--dt-label-2`, `-3`, …),
+  consommées par `td::before { content: var(--dt-label-N) }`. Les styles vivent
+  dans `resources/css/app.css` (tokens de la charte uniquement).
+- La prop `stack` (`true` par défaut) permet de désactiver le mode carte.
+- Corrigé au passage les en-têtes dupliqués « Produit » des clôtures
+  journalières (deuxième colonne = quantités produites → « Production »).
+
+**Conséquences.** Tous les écrans à tableau deviennent lisibles sur téléphone
+sans défilement horizontal ; le rendu `md+` est **inchangé** (vérifié au
+navigateur en 390 px et 1280 px). Aucune logique métier touchée.
+Garde-fou : `tests/Feature/Design/ResponsiveTableTest.php` (rendu, désactivation,
+échappement) et `SalesScreenTest` (l'écran des ventes rend bien des cartes).
+
+---
+
+## ADR-030 — Photos de produit : un fichier sur le disque public
+
+**Contexte.** Le cahier §4.2 liste la « photo facultative » du produit. La
+colonne `products.photo_path` (nullable), son entrée dans `$fillable` et la
+factory existaient déjà — mais rien ne la remplissait ni ne l'affichait.
+
+**Décision.**
+- **Stockage** : disque `public`, dossier `products/`, nom de fichier généré
+  (`$file->store()`), chemin relatif stocké dans `products.photo_path`. Le lien
+  `public/storage` est créé par `php artisan storage:link`, ajouté à
+  `composer setup` et à l'installation manuelle du README (ce dossier est
+  ignoré par git).
+- **Validation** : `photo` nullable, `image` + `mimes:jpeg,jpg,png,webp,gif` et
+  `max:4096` (4 Mo), messages en français. Enregistrer un produit sans photo
+  reste valide.
+- **Cycle de vie** : un nouveau fichier remplace l'ancien ; la case
+  `remove_photo` (absente quand il n'y a pas de photo) efface le champ **et** le
+  fichier. La suppression du fichier n'a lieu **qu'après** la mise à jour
+  réussie. L'orchestration reste dans `ProductController`
+  (`storePhoto()` / `forgetPhoto()`) pour ne pas alourdir le modèle.
+- **Lecture** : `Product::photoUrl()` renvoie l'URL publique ou `null`.
+- **Affichage** : vignette 36 px dans la première colonne du catalogue (icône
+  `package` en repli), aperçu 96 px + case de suppression dans le formulaire,
+  et pastille ronde en caisse (POS) à la place de l'emoji de la famille.
+
+**Conséquences.** Aucune migration (la colonne était déjà là) et aucune règle
+métier touchée. Sans photo, les écrans gardent exactement le même aspect (emoji
+en caisse, icône au catalogue). Garde-fous : `tests/Feature/Products/ProductPhotoTest.php`
+(9 tests) et 2 tests ajoutés à `PointOfSaleTest`.
+
+---
+
+## ADR-031 — Carte produit de la caisse : conteneur explicite et photo plein cadre
+
+**Contexte.** Le sondage du POS a montré une carte quasi invisible : le bouton
+n'avait ni bordure ni fond (transparent sur le canvas), le visuel était réduit
+à une pastille ronde de 72 px sur un dégradé crust, et le badge de prix
+chevauche le bas de cette pastille. Une fois les photos de produit livrées
+(ADR-030), ces 72 px ne mettaient pas la photo en valeur.
+
+**Décision.**
+- La carte est un conteneur explicite : `rounded-card border border-line
+  bg-surface shadow-card`, survol `hover:border-brand-500 hover:shadow-elevated`,
+  en `overflow-hidden` pour que le visuel épouse les coins hauts.
+- Le visuel occupe toute la largeur en `aspect-square` : la photo est en
+  `size-full object-cover` (léger zoom `group-hover:scale-105`), l'emoji de la
+  famille reste le repli (sans photo).
+- Le prix quitte la pastille et rejoint un corps aéré : nom sur deux lignes,
+  puis ligne prix / état du stock (petite pastille sémantique danger/warning/
+  brand). Plus aucun chevauchement.
+- Grille : l'écart passe de `1.5` à `2` pour laisser respirer les bordures.
+
+**Conséquences.** La cible tactile et la lisibilité de la photo augmentent
+fortement (154 px en desktop, 165 px en mobile, mesurés au CDP, contre 72 px
+avant). Aucune règle métier ni requête modifiée — seules la vue et une
+assertion de test changent. Garde-fou :
+`PointOfSaleTest::test_the_product_card_is_a_structured_container`. Cette
+décision remplace la « pastille ronde » d'ADR-030 pour la caisse.
+
+---
+
+## ADR-032 — Identité du site : nom modifiable, logo et favicon
+
+**Contexte.** Le nom d'une boulangerie n'était modifiable que dans
+l'administration des sites (`/settings/bakeries`), et rien ne représentait
+visuellement une boulangerie : ni logo, ni icône d'onglet. Le propriétaire
+demande de pouvoir renommer la boulangerie depuis le tableau de bord, d'y
+ajouter un logo, et que ce logo serve de favicon.
+
+**Décision.**
+- Migration additive : `bakeries.logo_path` (nullable) — réversible, aucune
+  table existante modifiée.
+- Le fichier vit sur le disque `public`, dossier `bakeries/` ; seul le
+  chemin est persisté (`Bakery::logoUrl()`, comme `Product::photoUrl()`).
+  `php artisan storage:link` reste indispensable.
+- Le formulaire d'administration (`/settings/bakeries`) passe en
+  `multipart/form-data` et gagne une section « Logo et favicon » : aperçu,
+  remplacement et case « Supprimer le logo ». Un nouveau fichier remplace
+  l'ancien, effacé du disque **après** l'enregistrement réussi ; un envoi
+  sans fichier conserve le logo en place.
+- `App\Support\Branding::faviconUrl()` résout l'icône de l'onglet : logo du
+  site actif, sinon premier site accessible qui en définit un (ordre de
+  `BakeryContext::availableBakeries()` : site par défaut puis nom), sinon le
+  `favicon.ico` livré. Les trois gabarits (`app`, `auth`, `pos`) déclarent
+  `<link rel="icon">`.
+- Le tableau de bord ouvre un bandeau « Identité du site » (logo, nom, code)
+  avec un raccourci vers `bakeries.edit` ; il n'apparaît que si un site
+  précis est ouvert et que l'utilisateur a `update` (Policy, vérifiée côté
+  serveur). Le renommage lui-même reste l'action du formulaire
+  d'administration : une seule source de vérité du nom.
+- La liste d'administration et la barre latérale affichent le logo, avec
+  repli sur l'initiale du nom (`Bakery::initial()`) — jamais de blanc.
+- Le rôle Super-Admin reste le seul à administrer les sites
+  (`BakeryPolicy`) : un gérant renomme son site via un compte Super-Admin.
+
+**Conséquences.** Aucune règle métier ni aucun mouvement de stock n'est
+touché. Garde-fou : `tests/Feature/Bakeries/BakeryLogoTest.php` (16 tests) —
+téléversement, refus d'un fichier non image, remplacement, suppression,
+conservation du logo à défaut de fichier, affichage (liste, formulaire,
+tableau de bord) et favicon (site actif, vision consolidée, repli livré).
+Les tests téléversent un vrai PNG plutôt que `UploadedFile::fake()->image()`
+afin de ne pas dépendre de l'extension GD.
+
+---
+
+## ADR-033 — Identité du site dans les paramètres, réservée au Super-Admin
+
+**Contexte.** ADR-032 avait livré le renommage et le logo d'un site depuis
+l'administration des sites (`/settings/bakeries`) et un raccourci « Modifier le
+nom ou le logo » sur le tableau de bord. Le propriétaire demande que la
+modification des informations d'une boulangerie se fasse **dans les
+paramètres** et **uniquement par l'administrateur** : la carte « Général » de
+`/settings` affichait encore des champs factices (Nom du site, Code,
+Téléphone) qui n'enregistraient rien.
+
+**Décision.**
+- La page Paramètres (`/settings`) porte l'identité du **site courant** : nom,
+  code interne, adresse, téléphone et logo (aperçu, remplacement, case
+  « Supprimer le logo »). Les champs factices sont remplacés par ce
+  formulaire ; la devise reste un paramètre global affiché en lecture seule.
+- Nouvelle route `PUT /settings/site` (`settings.site.update`), protégée par
+  le middleware `permission:bakery.update` **et** par la Policy via
+  `UpdateBakeryIdentityRequest` : les deux sont revérifiés côté serveur.
+- Le site visé n'est jamais transmis par le formulaire : il est lu dans
+  `BakeryContext::current()`. Modifier un site non ouvert, ou sans site
+  courant, est refusé — il n'existe aucun champ caché détournable.
+- Le reste de la fiche (statut, responsable, notes) reste dans
+  l'administration des sites, accessible par le bouton « Gérer les sites » et
+  par la navigation (Administration → Boulangeries).
+- **Un seul point d'écriture** : `App\Domain\Sites\BakeryProfileService`
+  (`create()`, `update()` et le cycle de vie du logo — remplacement, effacement
+  après enregistrement réussi) est partagé par `BakeryController` et
+  `SettingsController`. Les deux contrôleurs restent minces ; aucun ne
+  manipule plus le fichier.
+- Le raccourci du tableau de bord (bandeau « Identité du site », ADR-032)
+  pointe désormais vers les paramètres : le tableau de bord n'est plus un lieu
+  d'administration.
+- Les rôles standard gardent `settings.view` pour lire la fiche (le nom du
+  site, son code, ses coordonnées) ; sans `bakery.update` ils voient une vue
+  en lecture seule et le message « Seul un administrateur peut modifier les
+  informations d'une boulangerie ». Masquer le formulaire ne suffit jamais :
+  la route et la Policy refusent l'écriture.
+
+**Conséquences.** Aucune migration et aucune règle métier touchée. Un
+Super-Admin en vision consolidée (aucun site ouvert) voit un état vide qui
+l'invite à choisir un site, plutôt qu'un formulaire sans cible. Garde-fou :
+`tests/Feature/Bakeries/SiteIdentitySettingsTest.php` (15 tests) — rendu de la
+fiche, lecture seule sans permission, mise à jour, isolation entre sites,
+refus sans site courant, unicité du code, nom obligatoire, téléversement /
+conservation / suppression du logo, refus d'un fichier non image — et les 16
+tests d'ADR-032 (`BakeryLogoTest`) qui continuent de couvrir
+`/settings/bakeries`.
 
 ---
 

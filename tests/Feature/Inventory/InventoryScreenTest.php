@@ -14,6 +14,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -60,6 +61,47 @@ class InventoryScreenTest extends TestCase
             ->get(route('inventory.index'))
             ->assertOk()
             ->assertSee('Farine 50 kg');
+    }
+
+    public function test_the_low_and_critical_counters_link_to_their_filtered_lists(): void
+    {
+        $bakery = Bakery::factory()->create();
+        $product = $this->product();
+
+        app(StockMovementService::class)->apply($bakery, $product, StockMovementType::SupplierIn, 5);
+
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('inventory.index'))
+            ->assertOk()
+            ->assertSee('state=low', false)
+            ->assertSee('state=critical', false);
+    }
+
+    public function test_the_low_state_filter_lists_only_the_products_below_threshold(): void
+    {
+        $bakery = Bakery::factory()->create();
+
+        $low = $this->product('Farine basse');
+        $sufficient = Product::factory()->create([
+            'name' => 'Sel suffisant',
+            'primary_unit_id' => $this->unit->getKey(),
+            'alert_threshold' => 10,
+        ]);
+
+        app(StockMovementService::class)->apply($bakery, $low, StockMovementType::SupplierIn, 5);
+        app(StockMovementService::class)->apply($bakery, $sufficient, StockMovementType::SupplierIn, 50);
+
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('inventory.index', ['state' => 'low']))
+            ->assertOk()
+            ->assertViewHas('stocks', function (LengthAwarePaginator $stocks): bool {
+                $names = collect($stocks->items())
+                    ->map(static fn (array $row): string => (string) $row['product']->name)
+                    ->all();
+
+                return in_array('Farine basse', $names, true)
+                    && ! in_array('Sel suffisant', $names, true);
+            });
     }
 
     public function test_super_admin_can_see_the_movements_ledger(): void

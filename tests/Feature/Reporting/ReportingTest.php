@@ -218,6 +218,28 @@ class ReportingTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_reports_entry_point_is_hidden_without_the_permission(): void
+    {
+        // Le bouton « Rapports » du tableau de bord n'est visible qu'avec
+        // report.view — un lien cliquable menant à un 403 est un bug d'UX.
+        $this->actingAs($this->user(Role::ProductionManager))
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('>Rapports</', false);
+
+        // Le caissier dispose de l'écran Téléchargements mais pas des rapports.
+        $this->actingAs($this->user(Role::Cashier))
+            ->get(route('exports.index'))
+            ->assertOk()
+            ->assertDontSee('>Rapports</', false);
+
+        // Un utilisateur autorisé garde bien son raccourci.
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('>Rapports</', false);
+    }
+
     public function test_reports_require_authentication(): void
     {
         $this->get(route('reports.index'))->assertRedirect('/login');

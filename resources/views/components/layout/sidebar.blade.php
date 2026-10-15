@@ -4,6 +4,7 @@
     $groups = \App\Support\Navigation::forUser(auth()->user());
     $context = app(BakeryContext::class);
     $currentSite = $context->current();
+    $brandLogoUrl = \App\Support\Branding::logoUrl();
 @endphp
 
 <div
@@ -27,8 +28,12 @@
     >
         {{-- Identité — bandeau vert de la charte --}}
         <div class="mt-1.5 flex h-16 shrink-0 items-center gap-3 bg-brand-700 px-4 text-white">
-            <div class="grid size-9 shrink-0 place-items-center rounded-card bg-surface text-sm font-extrabold text-brand-700">
-                B
+            <div class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-card bg-surface text-sm font-extrabold text-brand-700">
+                @if ($brandLogoUrl !== null)
+                    <img src="{{ $brandLogoUrl }}" alt="" class="size-full object-cover">
+                @else
+                    B
+                @endif
             </div>
             <div class="min-w-0">
                 <p class="truncate text-sm leading-tight font-bold">BakeryOS</p>

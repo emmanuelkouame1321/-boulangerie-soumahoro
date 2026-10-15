@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-use Illuminate\Support\Str;
+use App\Support\Configuration;
 
 /**
  * Rôles applicatifs (cahier §20).
  *
- * Les libellés et le plan de permissions vivent dans config/boulangerie.php.
- * Ne jamais écrire un nom de rôle en dur ailleurs : utiliser cette enum.
+ * Les libellés et le plan de permissions vivent dans config/boulangerie.php,
+ * lus via App\Support\Configuration (structures dérivées mises en cache,
+ * cahier §48). Ne jamais écrire un nom de rôle en dur ailleurs : utiliser
+ * cette enum.
  */
 enum Role: string
 {
@@ -21,7 +23,7 @@ enum Role: string
 
     public function label(): string
     {
-        return config("boulangerie.roles.{$this->value}.label", Str::headline($this->value));
+        return Configuration::role($this->value)['label'];
     }
 
     /**
@@ -29,10 +31,7 @@ enum Role: string
      */
     public function permissions(): array
     {
-        /** @var list<string> $permissions */
-        $permissions = config("boulangerie.roles.{$this->value}.permissions", []);
-
-        return $permissions;
+        return Configuration::role($this->value)['permissions'];
     }
 
     public function isSuperAdmin(): bool

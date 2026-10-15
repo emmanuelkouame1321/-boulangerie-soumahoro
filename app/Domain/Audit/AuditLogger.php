@@ -26,7 +26,12 @@ class AuditLogger
      *
      * @var list<string>
      */
-    public const SENSITIVE = ['password', 'remember_token'];
+    public const SENSITIVE = [
+        'password',
+        'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+    ];
 
     public function __construct(private readonly BakeryContext $context) {}
 

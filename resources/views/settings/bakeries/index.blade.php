@@ -81,9 +81,21 @@
                         @foreach ($bakeries as $bakery)
                             <tr class="border-b border-line last:border-b-0 hover:bg-subtle/60">
                                 <th scope="row" class="px-5 py-4 font-normal">
-                                    <span class="block font-medium text-ink">{{ $bakery->name }}</span>
-                                    <span class="numeric mt-0.5 block text-xs text-muted">
-                                        {{ $bakery->code }}@if ($bakery->address) · {{ $bakery->address }} @endif
+                                    <span class="flex items-center gap-3">
+                                        <span class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-control border border-line bg-subtle text-xs font-extrabold text-brand-700">
+                                            @if ($bakery->logoUrl() !== null)
+                                                <img src="{{ $bakery->logoUrl() }}" alt="" class="size-full object-cover">
+                                            @else
+                                                {{ $bakery->initial() }}
+                                            @endif
+                                        </span>
+
+                                        <span class="min-w-0">
+                                            <span class="block font-medium text-ink">{{ $bakery->name }}</span>
+                                            <span class="numeric mt-0.5 block text-xs text-muted">
+                                                {{ $bakery->code }}@if ($bakery->address) · {{ $bakery->address }} @endif
+                                            </span>
+                                        </span>
                                     </span>
                                 </th>
 

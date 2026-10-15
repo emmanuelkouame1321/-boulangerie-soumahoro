@@ -19,6 +19,7 @@ ristournes, employés, paie, charges, rapports et audit.
 | [`ROADMAP.md`](ROADMAP.md) | Plan de développement par phases |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Découpage des couches et motifs obligatoires |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Journal des décisions et hypothèses ouvertes |
+| [`docs/SAUVEGARDES.md`](docs/SAUVEGARDES.md) | Sauvegardes, rétention, restauration testée et reprise après incident |
 
 ---
 
@@ -66,6 +67,20 @@ mysql -u root -e "CREATE DATABASE boulangerie_soumahoro CHARACTER SET utf8mb4 CO
 
 php artisan migrate --seed
 npm install && npm run build
+
+# Lien public des photos de produits et des logos de site
+# (le dossier /public/storage est ignoré par git)
+php artisan storage:link
+```
+
+> **Images invisibles ?** Les photos de produits (`storage/app/public/products/`)
+et les logos de site (`storage/app/public/bakeries/`) sont servis via
+`public/storage`. Ce lien est **absolu** : il casse dès que le dossier du
+projet change de nom ou d'emplacement, et toutes les images renvoient alors
+un 404 sans le moindre message d'erreur. Après un déplacement ou un clone :
+
+```bash
+rm public/storage && php artisan storage:link
 ```
 
 ---

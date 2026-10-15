@@ -8,14 +8,16 @@
         <x-ui.icon name="menu" :size="20" />
     </button>
 
+    {{-- Ouvre la palette de recherche globale (composant monté dans la coquille). --}}
     <button
         type="button"
-        onclick="window.toast('Recherche globale ouverte')"
+        @click="$dispatch('open-global-search')"
         class="flex items-center gap-2 rounded-control border border-line-strong px-3 py-2 text-[13px] text-muted transition hover:bg-subtle"
         aria-label="Recherche globale"
     >
         <x-ui.icon name="search" :size="16" />
         <span class="hidden sm:inline">Recherche</span>
+        <kbd class="hidden rounded-control border border-line px-1.5 text-[10px] font-bold text-soft lg:inline">Ctrl K</kbd>
     </button>
 
     <livewire:sites.site-switcher />
@@ -63,6 +65,15 @@
                     <p class="truncate text-[13px] font-medium text-ink">{{ auth()->user()->name }}</p>
                     <p class="truncate text-xs text-muted">{{ auth()->user()->getRoleNames()->first() }}</p>
                 </div>
+
+                <a
+                    href="{{ route('settings.security.index') }}"
+                    role="menuitem"
+                    class="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[13px] text-ink transition hover:bg-subtle"
+                >
+                    <x-ui.icon name="shield-check" :size="16" class="text-soft" />
+                    Sécurité du compte
+                </a>
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf

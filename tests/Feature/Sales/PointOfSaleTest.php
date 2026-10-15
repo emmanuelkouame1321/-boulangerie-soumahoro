@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -69,6 +70,17 @@ class PointOfSaleTest extends TestCase
             ->assertSee('Panier');
     }
 
+    public function test_the_checkout_screen_exposes_a_cart_for_mobile(): void
+    {
+        $this->actingAs($this->cashier());
+
+        Livewire::test(PointOfSale::class)
+            ->assertSeeHtml('x-data="{ cartOpen: false }"')
+            ->assertSeeHtml('x-show="cartOpen"')
+            ->assertSeeHtml('x-on:click="cartOpen = true"')
+            ->assertSee('Payer');
+    }
+
     public function test_adding_and_changing_quantity_updates_the_cart(): void
     {
         $this->actingAs($this->cashier());
@@ -81,6 +93,44 @@ class PointOfSaleTest extends TestCase
             ->assertSet('cart.0.qty', 2)
             ->call('removeItem', $this->bread->getKey())
             ->assertSet('cart', []);
+    }
+
+    public function test_the_product_card_is_a_structured_container(): void
+    {
+        $this->actingAs($this->cashier());
+
+        Livewire::test(PointOfSale::class)
+            // Conteneur visible : bordure, fond de surface et ombre de carte.
+            ->assertSeeHtml('rounded-card border border-line bg-surface')
+            // Visuel carré pleine largeur, plus lisible que la pastille de 72 px.
+            ->assertSeeHtml('aspect-square w-full')
+            // Le prix vit dans le corps de la carte, il ne chevauche plus le visuel.
+            ->assertSeeHtml('numeric text-[13px] leading-none font-bold text-brand-700');
+    }
+
+    public function test_a_product_photo_replaces_the_generic_illustration(): void
+    {
+        Storage::fake('public');
+
+        $path = 'products/baguette.png';
+        Storage::disk('public')->put($path, 'contenu');
+        $this->bread->update(['photo_path' => $path]);
+
+        $this->actingAs($this->cashier());
+
+        Livewire::test(PointOfSale::class)
+            ->assertSee($this->bread->photoUrl(), false)
+            // Sans photo, la carte affiche l'emoji de la famille.
+            ->assertDontSee('🍞');
+    }
+
+    public function test_a_product_without_a_photo_keeps_the_emoji(): void
+    {
+        $this->actingAs($this->cashier());
+
+        Livewire::test(PointOfSale::class)
+            ->assertSee('🍞')
+            ->assertDontSee('<img', false);
     }
 
     public function test_payment_cannot_open_on_an_empty_cart(): void

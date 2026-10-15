@@ -28,6 +28,51 @@ enum ProductType: string
         };
     }
 
+    /**
+     * Groupe d'affichage (cahier §4.1) : « products » = produit fini,
+     * « materials » = tout le reste (matières premières, consommables,
+     * emballages, ressources, semi-finis).
+     */
+    public function group(): string
+    {
+        return $this === self::FinishedGood ? 'products' : 'materials';
+    }
+
+    /**
+     * Préfixe du code produit généré (cahier §4.2). Ex. `PF-0001` pour un
+     * produit fini, `MP-0001` pour une matière première.
+     */
+    public function skuPrefix(): string
+    {
+        return match ($this) {
+            self::RawMaterial => 'MP',
+            self::SemiFinished => 'SF',
+            self::FinishedGood => 'PF',
+            self::Consumable => 'CONS',
+            self::Packaging => 'EMB',
+            self::Resource => 'RES',
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function groups(): array
+    {
+        return ['products', 'materials'];
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function forGroup(string $group): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            static fn (self $type): bool => $type->group() === $group,
+        ));
+    }
+
     public function isStockable(): bool
     {
         return $this !== self::Resource;

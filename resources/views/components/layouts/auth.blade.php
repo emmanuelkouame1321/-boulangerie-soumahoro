@@ -12,6 +12,9 @@
 
     <title>{{ $title ? $title.' — '.config('app.name') : config('app.name') }}</title>
 
+    {{-- Le logo du site fait office de favicon (ADR-032). --}}
+    <link rel="icon" href="{{ \App\Support\Branding::faviconUrl() }}">
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=roboto:400,500,700,900" rel="stylesheet">
 

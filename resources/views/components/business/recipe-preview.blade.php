@@ -27,7 +27,13 @@
                 pour {{ Format::stock((string) $batches) }} lot(s)
             </p>
         </div>
-        <x-ui.status-badge tone="info" :label="Format::money($cost)" :icon="false" />
+        <div class="flex items-center gap-2">
+            <x-ui.status-badge tone="info" :label="Format::money($cost)" :icon="false" />
+
+            @isset($actions)
+                {{ $actions }}
+            @endisset
+        </div>
     </div>
 
     @if (empty($requirements))

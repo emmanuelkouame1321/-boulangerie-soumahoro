@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Audit\AuditLogger;
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Support\Configuration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
@@ -31,7 +32,7 @@ class RoleController extends Controller
 
         return view('roles.index', [
             'roles' => $roles,
-            'catalogueCount' => count((array) config('boulangerie.permissions', [])),
+            'catalogueCount' => count(Configuration::permissionCatalogue()),
         ]);
     }
 
@@ -116,25 +117,14 @@ class RoleController extends Controller
     }
 
     /**
-     * Permissions du catalogue, groupées par module (préfixe avant le point).
+     * Permissions du catalogue, groupées par module (préfixe avant le
+     * point) — structure dérivée mémorisée en cache (cahier §48).
      *
      * @return array<string, list<string>>
      */
     private function permissionGroups(): array
     {
-        /** @var list<string> $permissions */
-        $permissions = array_values((array) config('boulangerie.permissions', []));
-
-        $groups = [];
-
-        foreach ($permissions as $permission) {
-            $module = explode('.', $permission)[0];
-            $groups[$module][] = $permission;
-        }
-
-        ksort($groups);
-
-        return $groups;
+        return Configuration::permissionGroups();
     }
 
     private function forgetPermissionCache(): void

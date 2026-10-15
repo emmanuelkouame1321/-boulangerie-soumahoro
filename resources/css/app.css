@@ -117,4 +117,87 @@
     .label-caps {
         @apply text-[11px] font-bold tracking-wide uppercase;
     }
+
+    /*
+    | Tableaux responsives — sous `md`, chaque ligne devient une carte.
+    |--------------------------------------------------------------------------
+    | Un tableau large ne se lit pas en défilement horizontal sur un téléphone.
+    | Le composant `x-ui.data-table` fournit les libellés de colonnes via des
+    | variables CSS (`--dt-label-N`) ; ici, on empile les cellules en lignes
+    | « libellé / valeur ». La première cellule sert de titre de carte.
+    | Les couleurs et rayons viennent des tokens de la charte.
+    */
+    @media (max-width: 767px) {
+        .data-card-table table {
+            display: block;
+            width: 100%;
+        }
+
+        .data-card-table thead {
+            display: none;
+        }
+
+        .data-card-table tbody {
+            display: block;
+        }
+
+        .data-card-table tbody tr {
+            display: block;
+            margin-bottom: 12px;
+            overflow: hidden;
+            border: 1px solid var(--color-line);
+            border-radius: var(--radius-card);
+            background: var(--color-surface);
+        }
+
+        .data-card-table tbody tr:last-child {
+            margin-bottom: 0;
+        }
+
+        .data-card-table tbody td {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            text-align: right;
+        }
+
+        .data-card-table tbody td::before {
+            content: none;
+            flex: 0 0 auto;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.025em;
+            text-transform: uppercase;
+            color: var(--color-muted);
+        }
+
+        /* Première cellule = titre de la carte, sans libellé. */
+        .data-card-table tbody td:first-child {
+            display: block;
+            text-align: left;
+            font-weight: 700;
+            color: var(--color-ink);
+            background: var(--color-subtle);
+        }
+
+        .data-card-table tbody td:first-child::before {
+            content: none;
+        }
+
+        .data-card-table tbody td:nth-child(2)::before { content: var(--dt-label-2, none); }
+        .data-card-table tbody td:nth-child(3)::before { content: var(--dt-label-3, none); }
+        .data-card-table tbody td:nth-child(4)::before { content: var(--dt-label-4, none); }
+        .data-card-table tbody td:nth-child(5)::before { content: var(--dt-label-5, none); }
+        .data-card-table tbody td:nth-child(6)::before { content: var(--dt-label-6, none); }
+        .data-card-table tbody td:nth-child(7)::before { content: var(--dt-label-7, none); }
+        .data-card-table tbody td:nth-child(8)::before { content: var(--dt-label-8, none); }
+        .data-card-table tbody td:nth-child(9)::before { content: var(--dt-label-9, none); }
+        .data-card-table tbody td:nth-child(10)::before { content: var(--dt-label-10, none); }
+        .data-card-table tbody td:nth-child(11)::before { content: var(--dt-label-11, none); }
+        .data-card-table tbody td:nth-child(12)::before { content: var(--dt-label-12, none); }
+        .data-card-table tbody td:nth-child(13)::before { content: var(--dt-label-13, none); }
+        .data-card-table tbody td:nth-child(14)::before { content: var(--dt-label-14, none); }
+    }
 }

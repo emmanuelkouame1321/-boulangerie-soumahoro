@@ -36,6 +36,8 @@ class UpdateBakeryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:32'],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:4096'],
+            'remove_logo' => ['sometimes', 'boolean'],
             'manager_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'status' => ['required', Rule::enum(BakeryStatus::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -49,6 +51,8 @@ class UpdateBakeryRequest extends FormRequest
     {
         return [
             'code.unique' => 'Ce code est déjà utilisé par une autre boulangerie.',
+            'logo.image' => 'Le logo doit être une image (JPEG, PNG, WebP ou GIF).',
+            'logo.max' => 'Le logo ne doit pas dépasser 4 Mo.',
         ];
     }
 }

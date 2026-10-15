@@ -45,6 +45,19 @@ class UpdateProductRequest extends FormRequest
             'shelf_life_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
             'is_active' => ['boolean'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'remove_photo' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'photo.image' => 'Le fichier doit être une image (JPEG, PNG, WebP ou GIF).',
+            'photo.max' => 'L’image ne doit pas dépasser 4 Mo.',
         ];
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorIsVerified;
 use App\Http\Middleware\ResolveBakeryContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,9 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
+        // Second facteur (cahier §31) : un compte qui l'a activé n'atteint
+        // aucune page applicative avant d'avoir franchi le défi.
+        //
         // Résolution du site courant à chaque requête web : c'est ce qui
         // alimente l'isolation par site (cahier §19.2).
         $middleware->web(append: [
+            EnsureTwoFactorIsVerified::class,
             ResolveBakeryContext::class,
         ]);
 

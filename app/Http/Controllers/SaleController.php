@@ -47,7 +47,10 @@ class SaleController extends Controller
         $date = (string) $request->query('date', '');
 
         $sales = Sale::query()
-            ->with(['customer', 'bakery', 'createdBy'])
+            // `payments` est chargé avec la liste : le mode de paiement
+            // affiché vient du premier paiement de chaque vente (pas de
+            // requête par ligne).
+            ->with(['customer', 'bakery', 'createdBy', 'payments'])
             ->withCount('items')
             ->search($search)
             ->when($date !== '', fn ($query) => $query->whereDate('sale_date', $date))

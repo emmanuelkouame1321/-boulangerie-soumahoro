@@ -5,7 +5,9 @@
         description="Les exports (rapports, grand livre, audit) sont produits en arrière-plan, puis restent téléchargeables 7 jours."
     >
         <x-slot:actions>
-            <x-ui.button variant="secondary" icon="chart-no-axes-combined" :href="route('reports.index')">Rapports</x-ui.button>
+            @can('report.view')
+                <x-ui.button variant="secondary" icon="chart-no-axes-combined" :href="route('reports.index')">Rapports</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-layout.page-header>
 

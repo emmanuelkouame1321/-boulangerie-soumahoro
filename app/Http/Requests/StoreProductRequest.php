@@ -36,6 +36,7 @@ class StoreProductRequest extends FormRequest
             'shelf_life_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
             'is_active' => ['boolean'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ];
     }
 
@@ -47,6 +48,8 @@ class StoreProductRequest extends FormRequest
         return [
             'sku.unique' => 'Ce code produit (SKU) est déjà utilisé.',
             'secondary_unit_id.different' => 'L’unité secondaire doit différer de l’unité principale.',
+            'photo.image' => 'Le fichier doit être une image (JPEG, PNG, WebP ou GIF).',
+            'photo.max' => 'L’image ne doit pas dépasser 4 Mo.',
         ];
     }
 }

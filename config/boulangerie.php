@@ -56,6 +56,9 @@ return [
                 'supplier.manage',
                 'alert.view',
                 'alert.acknowledge',
+                'transfer.view',
+                'transfer.create',
+                'transfer.receive',
             ],
         ],
         'sales-manager' => [
@@ -76,6 +79,8 @@ return [
                 'loss.create',
                 'alert.view',
                 'report.view-commercial',
+                'transfer.view',
+                'transfer.receive',
             ],
         ],
         'cashier' => [
@@ -127,6 +132,9 @@ return [
         'rebate.manage',
         'loss.view',
         'loss.create',
+        'transfer.view',
+        'transfer.create',
+        'transfer.receive',
         'employee.view',
         'employee.manage',
         'payroll.view',
@@ -522,6 +530,19 @@ return [
         ['code' => 'sandwich', 'name' => 'Sandwichs', 'position' => 40],
         ['code' => 'drink', 'name' => 'Boissons', 'position' => 50],
         ['code' => 'raw', 'name' => 'Matières premières', 'position' => 60],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Groupes du catalogue (cahier §4.1)
+    |--------------------------------------------------------------------------
+    | Deux familles d'affichage : les produits (produit fini) et les
+    | matières premières (tout le reste : matières, semi-finis,
+    | consommables, emballages, ressources). Voir ProductType::group().
+    */
+    'product_groups' => [
+        'products' => 'Produits',
+        'materials' => 'Matières premières',
     ],
 
     /*

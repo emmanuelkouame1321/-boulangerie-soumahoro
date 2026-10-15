@@ -26,6 +26,7 @@ return [
             'items' => [
                 ['label' => 'Production', 'path' => 'production', 'icon' => 'factory', 'permission' => 'production.view'],
                 ['label' => 'Stocks', 'path' => 'inventory', 'icon' => 'boxes', 'permission' => 'inventory.view'],
+                ['label' => 'Transferts', 'path' => 'inventory/transfers', 'icon' => 'truck', 'permission' => 'transfer.view'],
                 ['label' => 'Produits', 'path' => 'products', 'icon' => 'package', 'permission' => 'product.view'],
                 ['label' => 'Achats', 'path' => 'purchasing/orders', 'icon' => 'shopping-cart', 'permission' => 'purchasing.view'],
                 ['label' => 'Ventes', 'path' => 'sales', 'icon' => 'receipt', 'permission' => 'sales.view'],

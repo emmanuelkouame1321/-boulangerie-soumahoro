@@ -40,7 +40,7 @@
                 </div>
             @else
                 <div class="mt-4">
-                    <x-ui.data-table :headers="['Produit', ['label' => 'Produit', 'align' => 'right'], ['label' => 'Vendu', 'align' => 'right'], ['label' => 'Attendu', 'align' => 'right'], 'Restant', 'Perdu', 'Retourné']">
+                    <x-ui.data-table :headers="['Produit', ['label' => 'Production', 'align' => 'right'], ['label' => 'Vendu', 'align' => 'right'], ['label' => 'Attendu', 'align' => 'right'], 'Restant', 'Perdu', 'Retourné']">
                         @foreach ($snapshot as $row)
                             <tr>
                                 <td class="font-medium">{{ $row['product']->name }}</td>

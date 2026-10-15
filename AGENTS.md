@@ -530,13 +530,123 @@ Tout composant UI est un composant anonyme Blade : `<x-ui.status-badge />`.
   `csv()` / `xls()` en flux restent pour l'affichage direct)
 - Index de recherche : `[bakery_id, occurred_at]` sur `stock_movements`,
   `[bakery_id, created_at]` sur `audit_logs`
-- 247 tests verts (895 assertions), Larastan, Pint et charte propres
+- Cache des données de configuration (cahier §48) :
+  `App\Support\Navigation::tree()` mémorise l'arbre de menu résolu (les
+  entrées sans route sont écartées une fois, plus de parcours de la table
+  des routes à chaque requête) et `App\Support\Configuration` mémorise les
+  structures dérivées (catalogue de permissions, groupement par module,
+  libellés et permissions des rôles — `App\Enums\Role` les lit). Les clés
+  sont indexées par le **contenu** (empreinte de la configuration et, pour
+  la navigation, de la table des routes) : aucune purge manuelle, jamais
+  de valeur périmée ; TTL 24 h. Ne sont jamais mis en cache le filtre par
+  permission, l'état « actif », l'URL absolue ni aucun agrégat métier
+- N+1 : mode de paiement des ventes chargé avec la liste
+  (`with('payments')`), chiffre d'affaires du jour par site et tendance
+  7 j en requêtes groupées ; garde-fou
+  `tests/Feature/Performance/QueryBudgetTest.php` (le nombre de requêtes
+  d'un écran doit être le même avec 1 puis 15 lignes)
+- Sécurité du compte (cahier §31, ADR-022) :
+  `App\Support\Totp` implémente TOTP (RFC 6238, validé par les vecteurs de
+  la RFC) et `App\Domain\Security\TwoFactorService` porte le cycle de vie
+  (begin / confirm / verify / disable). Écran `/settings/security` en
+  libre-service (mot de passe courant exigé pour toute modification), défi
+  à la connexion (`/two-factor/challenge`), 8 codes de secours hachés et
+  consommés à l'usage, secret et codes chiffrés au repos (`encrypted`),
+  `EnsureTwoFactorIsVerified` ferme toutes les pages applicatives. Lien
+  « Sécurité du compte » dans le menu profil de la topbar
+- Limitation de débit nommée dans `AppServiceProvider` : `login`,
+  `two-factor` (5/min par compte), `password-reset` (demande **et**
+  réinitialisation), `exports` (10/min par compte)
+- Stratégie de sauvegarde documentée : `docs/SAUVEGARDES.md` (script
+  `mysqldump` + `tar` + `rsync`, contrôle d'intégrité, rétention
+  7 / 4 / 12, journal CSV, restauration testée trimestriellement, procédure
+  de reprise après incident, `APP_KEY` à sauvegarder avec la base)
+- Transferts inter-sites (cahier §19.3, ADR-023) : `stock_transfers`
+  (référence `TRF-{Ym}-{NNNN}`, deux sites, produit, lot facultatif,
+  motif, date métier, statut `draft → sent → received`, `cancelled` en
+  brouillon) ; `App\Domain\Inventory\StockTransferService` orchestre
+  `create()` / `send()` / `receive()` / `cancel()`. L'expédition crée un
+  mouvement `transfer_out` chez l'expéditeur (et sort le lot, compteur
+  `transferred_quantity`), la réception un `transfer_in` chez le
+  destinataire (et recrée le lot avec la même date limite via
+  `LotService::createFromTransfer()`). Idempotence
+  `transfer:{id}:out|in`, ordre « lots puis stock ». Pas de
+  `BelongsToBakery` : isolation par scope `involvingAny()` + 
+  `Route::bind('transfer', …)` (404 hors sites accessibles) et
+  `StockTransferPolicy` (expéditeur / destinataire distincts). Permissions
+  `transfer.view` / `transfer.create` / `transfer.receive` ; écrans
+  `/inventory/transfers` (liste, création, détail avec Expédier /
+  Réceptionner / Annuler) ; entrée de navigation « Transferts »
+- Recherche globale (cahier §10, ADR-024) : `App\Livewire\Search\GlobalSearch`
+  (palette `Ctrl K` / `Échap`, montée à la racine de la coquille, résultats
+  recalculés à la frappe via `wire:model.live.debounce.300ms`) et
+  `App\Domain\Search\GlobalSearchService` (dix groupes, scopes `search()`
+  existants, filtrage **serveur** par permission de module et par site —
+  `BakeryScope` pour les modèles rattachés à un site, `involvingAny()`
+  explicite pour `StockTransfer` ; bornes 2/64 caractères, 5 résultats par
+  groupe ; le service ne renvoie que des chaînes et des URL, jamais de
+  modèle ni d'identifiant). Déclencheur dans la topbar du gabarit applicatif
+- Correctif du menu burger mobile : la coquille applicative
+  (`x-layout.app-shell`) est désormais la **racine Alpine** (`x-data`) ;
+  garde-fou `tests/Feature/Design/AlpineRootTest.php` (toute directive
+  Alpine du rendu doit avoir un ancêtre `x-data`/`wire:id`)
+- Création et modification de recettes (ADR-025) : `RecipeController`
+  (`create/store/edit/update`), `StoreRecipeRequest`/`UpdateRecipeRequest`
+  (`permission:recipe.manage`), formulaire partagé
+  `x-production.recipe-form` à lignes dynamiques (Alpine `x-data` + `x-for`) ;
+  duplication par pré-remplissage `?from={id}`, boutons « Modifier » et
+  « Dupliquer » sur l'index ; nomenclature remplacée en bloc à l'édition
+- Écran Stocks : les compteurs « Stock faible » et « Critique » sont des
+  liens vers la liste filtrée (`inventory.index?state=low|critical`) ;
+  `x-ui.stat-card` accepte désormais un `href` (carte cliquable, charte
+  respectée), recherche en cours conservée
+- Catalogue (`/products`) scindé en deux familles (ADR-026) : onglets
+  « Produits » (produit fini) et « Matières premières » (tout le reste),
+  via `ProductType::group()` (dérivé du type, rien en base) ; filtre `type`
+  scopé à la famille, compteurs par famille, retour sur la bonne famille
+  après création
+- Formulaire produit : la famille (Produits / Matières premières) est
+  demandée en premier (ADR-026) ; la nature précise n'apparaît que pour les
+  matières premières, le `type` enregistré en découle (champ caché)
+- Catalogue : « Nouveau produit » ouvre une modale de choix de famille
+  (`x-ui.modal` + `$dispatch('open-modal')`) qui mène à
+  `products.create?group=products|materials`
+- Code produit (SKU) : bouton « Générer » (ADR-027) via
+  `GET products.generate-sku` (`ProductType::skuPrefix()` + nom normalisé,
+  ex. `PF-BAGUETTE`, suffixe `-2` en cas de collision) ; l'unicité reste
+  vérifiée à l'enregistrement
+- Caisse (POS) mobile (ADR-028) : panier extrait dans
+  `livewire/sales/partials/cart.blade.php`, rendu en colonne (`lg+`) et en
+  tiroir bas (mobile, racine Alpine `cartOpen`) ; catégories en défilement
+  horizontal, barre d'action fixe (total / Panier / Payer)
+- Tableaux de données responsives (ADR-029) : sous `md`, `x-ui.data-table`
+  empile chaque ligne en carte (première cellule = titre, `td::before` = libellé
+  via `--dt-label-N`) ; styles dans `app.css`, prop `stack` pour désactiver
+- Photos de produit (ADR-030) : `photo` sur le formulaire produit, disque
+  `public` / dossier `products/`, chemin dans `products.photo_path`,
+  `Product::photoUrl()`. **`php artisan storage:link` est indispensable** (le
+  dossier `/public/storage` est ignoré par git) — déjà dans `composer setup`.
+  Sans photo : icône `package` au catalogue, emoji en caisse
+- Carte produit de la caisse (ADR-031) : conteneur `rounded-card border
+  border-line bg-surface shadow-card` en `overflow-hidden`, visuel
+  `aspect-square` plein cadre (photo `size-full object-cover`, emoji en repli),
+  prix et état du stock dans un corps aéré — plus de chevauchement du visuel
+- Identité du site (ADR-032) : le nom de la boulangerie se modifie dans
+  `/settings/bakeries` (Super-Admin) et un **logo** y est téléversé
+  (`bakeries.logo_path`, disque `public`, dossier `bakeries/`, remplacement et
+  suppression du fichier précédent après enregistrement réussi). Le logo
+  sert de **favicon** : `App\Support\Branding::faviconUrl()` prend celui du
+  site actif, sinon celui du premier site accessible, sinon `favicon.ico`.
+  Logo affiché sur la liste des sites, la barre latérale et un bandeau
+  « Identité du site » du tableau de bord (repli : `Bakery::initial()`)
+- 372 tests (1535 assertions) — Larastan, Pint et charte propres ; les seuls
+  échecs locaux (2, `ProductPhotoTest`) viennent de l'extension GD absente
+  de `php.ini`, jamais du code
 
-**Prochaine tâche : finir la Phase 10 — cache de configuration et de
-navigation, 2FA optionnelle et sauvegardes documentées, transferts
-inter-sites (§19.3), revue responsive (§89), accessibilité WCAG 2.2 AA,
-scénarios de concurrence et documentation d'exploitation.** Voir
-`ROADMAP.md` et ADR-021.
+**Prochaine tâche : finir la Phase 10 — revue responsive des formulaires et
+rapports (§89 : 1440 / 1280 / 1024 / 768 / 390), accessibilité WCAG 2.2 AA,
+scénarios de concurrence et documentation d'exploitation.**
+Voir `ROADMAP.md`, ADR-021, ADR-022 et ADR-023.
 
 ### Repères utiles
 
@@ -545,3 +655,26 @@ scénarios de concurrence et documentation d'exploitation.** Voir
   lire via `app(BakeryContext::class)`.
 - Les modèles porteurs d'un `bakery_id` doivent utiliser le trait
   `BelongsToBakery` pour bénéficier de l'isolation par site.
+- **Le lien `public/storage` est absolu** : il casse si le dossier du projet
+  change de nom ou d'emplacement (ou après un clone), et **toutes les images
+  renvoient un 404 sans aucune erreur** (photos de produit, logos de site).
+  Symptôme « les images ne s'affichent pas » → `rm public/storage &&
+  php artisan storage:link`, puis vérifier
+  `curl -o /dev/null -w "%{http_code}" "$APP_URL/storage/bakeries/<fichier>"`
+  (attendu : 200).
+- **Alpine n'initialise que les sous-arbres dont la racine porte `x-data`**
+  (ou un composant Livewire `wire:id`). Une directive `@click`/`x-…` écrite
+  ailleurs n'est jamais liée, et **sans aucune erreur** : vérifier qu'un
+  `x-data` existe plus haut, sinon la coquille applicative le fournit.
+- Éviter `x-show` quand le code doit agir **dès** l'affichage (focus d'un
+  champ, mesure de taille) : Alpine diffère le passage à l'état visible par
+  `setTimeout`. Préférer une bascule de classe (`:class="… ? 'flex' : 'hidden'"`).
+- Toute nouvelle route web passe par le groupe `web`, donc par
+  `EnsureTwoFactorIsVerified` : ne jamais écrire une page « de secours »
+  hors de la liste des routes autorisées sans second facteur, sinon un
+  compte protégé est enfermé. Les routes qui modifient la 2FA vivent dans
+  `settings.security.*` et exigent le mot de passe courant.
+- Un parcours sensible nouveau (envoi d'email, traitement lourd, action
+  irréversible) doit recevoir un limiteur nommé dans `AppServiceProvider`
+  plutôt qu'un `throttle:60,1` anonyme : le seuil se documente alors à un
+  seul endroit.

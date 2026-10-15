@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Boulangerie / site (cahier §19).
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $name
  * @property string|null $address
  * @property string|null $phone
+ * @property string|null $logo_path
  * @property int|null $manager_id
  * @property BakeryStatus $status
  * @property string|null $notes
@@ -40,6 +42,7 @@ class Bakery extends Model
         'name',
         'address',
         'phone',
+        'logo_path',
         'manager_id',
         'status',
         'notes',
@@ -92,6 +95,28 @@ class Bakery extends Model
     public function isActive(): bool
     {
         return $this->status === BakeryStatus::Active;
+    }
+
+    /**
+     * URL publique du logo du site, ou null s'il n'en a pas (ADR-032).
+     */
+    public function logoUrl(): ?string
+    {
+        if ($this->logo_path === null) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->logo_path);
+    }
+
+    /**
+     * Première lettre du nom, affichée à défaut de logo.
+     */
+    public function initial(): string
+    {
+        $name = trim((string) $this->name);
+
+        return $name === '' ? 'B' : mb_strtoupper(mb_substr($name, 0, 1));
     }
 
     /**

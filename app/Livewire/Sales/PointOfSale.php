@@ -200,7 +200,7 @@ final class PointOfSale extends Component
     }
 
     /**
-     * @return list<array{id: int, sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string}>
+     * @return list<array{id: int, sku: string, name: string, description: string, price: int, stock: int, category: string, emoji: string, photo: string|null}>
      */
     private function filteredProducts(): array
     {
@@ -229,6 +229,7 @@ final class PointOfSale extends Component
                 'stock' => $bakery !== null ? (int) round((float) app(StockService::class)->physical($product, $bakery)) : 0,
                 'category' => $category,
                 'emoji' => $this->emoji($product),
+                'photo' => $product->photoUrl(),
             ];
         }
 

@@ -83,6 +83,9 @@ class DashboardController extends Controller
     /**
      * Chiffre d'affaires du jour par site (vision consolidée).
      *
+     * Le chiffre d'affaires est agrégé en une requête pour tous les sites
+     * (cahier §48) : le coût ne dépend pas du nombre de boulangeries.
+     *
      * @return list<array{name: string, revenue: int}>
      */
     private function siteRevenue(BakeryContext $context, string $date): array
@@ -91,12 +94,14 @@ class DashboardController extends Controller
             return [];
         }
 
+        $revenues = $this->reporting->revenueForDayBySite($date);
+
         return Bakery::query()
             ->orderBy('name')
             ->get()
             ->map(fn (Bakery $bakery): array => [
                 'name' => $bakery->name,
-                'revenue' => $this->reporting->revenueForDay($bakery->getKey(), $date),
+                'revenue' => $revenues[$bakery->getKey()] ?? 0,
             ])
             ->all();
     }

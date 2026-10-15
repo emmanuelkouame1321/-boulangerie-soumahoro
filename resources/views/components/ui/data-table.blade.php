@@ -1,5 +1,6 @@
 @props([
     'headers' => [],
+    'stack' => true,
 ])
 
 @php
@@ -11,9 +12,32 @@
             : ['label' => (string) $header, 'align' => 'left'],
         $headers
     );
+
+    // Sous `md`, chaque ligne devient une carte (styles dans app.css). On ne
+    // peut pas étiqueter le contenu du slot en Blade : le libellé de chaque
+    // colonne est donc transmis en variable CSS, consommée par `td::before`.
+    // La première cellule sert de titre et n'a pas besoin de libellé.
+    $mobileLabels = [];
+
+    foreach (array_slice($columns, 1) as $index => $column) {
+        // Échappement CSS (chaîne entre apostrophes) puis HTML (attribut entre
+        // guillemets) : le libellé finit tel quel dans `td::before { content }`.
+        $label = str_replace(
+            ['\\', "'", '&', '"'],
+            ['\\\\', "\\'", '&amp;', '&quot;'],
+            $column['label']
+        );
+
+        $mobileLabels[] = '--dt-label-'.($index + 2).": '{$label}'";
+    }
+
+    $mobileStyle = implode('; ', $mobileLabels);
 @endphp
 
-<div class="overflow-x-auto">
+<div
+    @class(['overflow-x-auto', 'data-card-table' => $stack])
+    @if ($stack && $mobileStyle !== '') style="{!! $mobileStyle !!}" @endif
+>
     <table {{ $attributes->merge(['class' => 'w-full border-collapse text-[13px]']) }}>
         <thead>
             <tr>

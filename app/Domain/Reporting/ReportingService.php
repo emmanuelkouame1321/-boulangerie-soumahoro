@@ -491,19 +491,60 @@ final class ReportingService
     }
 
     /**
+     * Chiffre d'affaires du jour, par site (vision consolidée).
+     *
+     * Une seule requête groupée : ajouter une boulangerie ne doit pas
+     * ajouter une requête au tableau de bord.
+     *
+     * @return array<int, int> clé = identifiant du site
+     */
+    public function revenueForDayBySite(string $date): array
+    {
+        $revenues = [];
+
+        $rows = $this->salesQuery(null, $date, $date)
+            ->selectRaw('bakery_id, SUM(total) as revenue')
+            ->groupBy('bakery_id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $revenues[(int) $row->bakery_id] = (int) $row->revenue;
+        }
+
+        return $revenues;
+    }
+
+    /**
      * Chiffre d'affaires des N derniers jours (graphique du tableau de bord).
+     *
+     * Une requête groupée par jour plutôt qu'un comptage par date ; les
+     * journées sans vente sont complétées à zéro.
      *
      * @return list<array{date: string, revenue: int}>
      */
     public function revenueTrend(?int $bakeryId, int $days = 7): array
     {
+        $from = now()->subDays($days - 1)->toDateString();
+
+        $revenues = [];
+
+        $rows = $this->salesQuery($bakeryId, $from, now()->toDateString())
+            ->selectRaw('DATE(sale_date) as day, SUM(total) as revenue')
+            ->groupByRaw('DATE(sale_date)')
+            ->get();
+
+        foreach ($rows as $row) {
+            $revenues[(string) $row->day] = (int) $row->revenue;
+        }
+
         $trend = [];
 
         for ($offset = $days - 1; $offset >= 0; $offset--) {
-            $day = now()->subDays($offset);
+            $date = now()->subDays($offset)->toDateString();
+
             $trend[] = [
-                'date' => $day->toDateString(),
-                'revenue' => $this->revenueForDay($bakeryId, $day->toDateString()),
+                'date' => $date,
+                'revenue' => $revenues[$date] ?? 0,
             ];
         }
 

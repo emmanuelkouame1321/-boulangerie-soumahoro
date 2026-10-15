@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Inventory;
 
 use App\Enums\BatchStatus;
+use App\Enums\LotConsumption;
 use App\Exceptions\LotExpiredException;
 use App\Models\Bakery;
 use App\Models\Product;
@@ -41,7 +42,7 @@ final class LotService
      */
     public function sellFromLots(Bakery $bakery, Product $product, string $quantity, CarbonInterface $date): array
     {
-        return $this->consume($bakery, $product, $quantity, $date, false, false);
+        return $this->consume($bakery, $product, $quantity, $date, LotConsumption::Sold);
     }
 
     /**
@@ -53,7 +54,82 @@ final class LotService
      */
     public function attributeToLots(Bakery $bakery, Product $product, string $quantity, CarbonInterface $date): array
     {
-        return $this->consume($bakery, $product, $quantity, $date, true, true);
+        return $this->consume($bakery, $product, $quantity, $date, LotConsumption::Lost);
+    }
+
+    /**
+     * Sort des lots la quantité expédiée vers un autre site (FEFO, lots
+     * expirés exclus : on ne déplace pas un produit qui n'est plus
+     * vendable — cahier §19.3 et §41).
+     *
+     * @return list<array{batch: ProductionBatch, quantity: string}>
+     */
+    public function transferFromLots(Bakery $bakery, Product $product, string $quantity, CarbonInterface $date): array
+    {
+        return $this->consume($bakery, $product, $quantity, $date, LotConsumption::Transferred);
+    }
+
+    /**
+     * Sort une quantité d'un lot désigné explicitement (transfert d'un lot
+     * précis, cahier §19.3). Le lot reste au grand livre du site
+     * expéditeur comme historique : seule sa quantité disponible diminue.
+     */
+    public function transferFromBatch(ProductionBatch $batch, string $quantity, CarbonInterface $date): void
+    {
+        $available = Decimal::trim((string) $batch->available_quantity);
+        $taken = Decimal::compare($quantity, $available) < 0 ? Decimal::trim($quantity) : $available;
+
+        $batch->available_quantity = Decimal::subtract($available, $taken);
+        $batch->transferred_quantity = Decimal::add(
+            Decimal::trim((string) $batch->transferred_quantity),
+            $taken
+        );
+        $batch->status = $this->deriveStatus($batch, $date);
+        $batch->save();
+    }
+
+    /**
+     * Fait renaître chez le destinataire le lot reçu, avec les mêmes dates
+     * de production et de limite de vente : sans cela le produit
+     * arriverait sans traçabilité et pourrait être vendu après péremption.
+     *
+     * Le lot d'origine n'est jamais déplacé : l'historique du site
+     * expéditeur reste intact (cahier §53-11).
+     */
+    public function createFromTransfer(
+        Bakery $bakery,
+        Product $product,
+        string $quantity,
+        ProductionBatch $source,
+        Bakery $origin,
+        string $reference,
+    ): ProductionBatch {
+        $today = now();
+        $producedOn = $source->produced_on;
+        $expiresOn = $source->expires_on;
+
+        $batch = ProductionBatch::create([
+            'bakery_id' => $bakery->getKey(),
+            'product_id' => $product->getKey(),
+            'reference' => $reference,
+            'initial_quantity' => $quantity,
+            'available_quantity' => $quantity,
+            'produced_on' => $producedOn instanceof CarbonInterface
+                ? $producedOn->toDateString()
+                : $today->toDateString(),
+            'expires_on' => $expiresOn instanceof CarbonInterface ? $expiresOn->toDateString() : null,
+            'status' => BatchStatus::Fresh,
+            'note' => sprintf(
+                'Reçu de %s (lot %s).',
+                $origin->name,
+                $source->reference
+            ),
+        ]);
+
+        $batch->status = $this->deriveStatus($batch, $today);
+        $batch->save();
+
+        return $batch;
     }
 
     /**
@@ -90,10 +166,10 @@ final class LotService
         Product $product,
         string $quantity,
         CarbonInterface $date,
-        bool $includeExpired,
-        bool $isLoss,
+        LotConsumption $reason,
     ): array {
         $today = $date->copy()->startOfDay();
+        $includeExpired = $reason->includesExpired();
 
         $lots = ProductionBatch::withoutBakeryScope()
             ->where('bakery_id', $bakery->getKey())
@@ -163,11 +239,20 @@ final class LotService
 
             $lot->available_quantity = Decimal::subtract($available, $take);
 
-            if ($isLoss) {
-                $lot->lost_quantity = Decimal::add(Decimal::trim((string) $lot->lost_quantity), $take);
-            } else {
-                $lot->sold_quantity = Decimal::add(Decimal::trim((string) $lot->sold_quantity), $take);
-            }
+            match ($reason) {
+                LotConsumption::Sold => $lot->sold_quantity = Decimal::add(
+                    Decimal::trim((string) $lot->sold_quantity),
+                    $take
+                ),
+                LotConsumption::Lost => $lot->lost_quantity = Decimal::add(
+                    Decimal::trim((string) $lot->lost_quantity),
+                    $take
+                ),
+                LotConsumption::Transferred => $lot->transferred_quantity = Decimal::add(
+                    Decimal::trim((string) $lot->transferred_quantity),
+                    $take
+                ),
+            };
 
             $lot->status = $this->deriveStatus($lot, $today);
             $lot->save();

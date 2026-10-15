@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string $available_quantity
  * @property string $sold_quantity
  * @property string $lost_quantity
+ * @property string $transferred_quantity
  * @property Carbon $produced_on
  * @property Carbon|null $expires_on
  * @property BatchStatus $status
@@ -53,6 +54,7 @@ class ProductionBatch extends Model
         'available_quantity',
         'sold_quantity',
         'lost_quantity',
+        'transferred_quantity',
         'produced_on',
         'expires_on',
         'status',
@@ -69,6 +71,7 @@ class ProductionBatch extends Model
             'available_quantity' => 'decimal:4',
             'sold_quantity' => 'decimal:4',
             'lost_quantity' => 'decimal:4',
+            'transferred_quantity' => 'decimal:4',
             'produced_on' => 'date',
             'expires_on' => 'date',
             'status' => BatchStatus::class,

@@ -9,7 +9,8 @@
         <x-products.form
             :product="$product"
             :action="route('products.store')"
-            :type-options="$typeOptions"
+            :group-options="$groupOptions"
+            :types-by-group="$typesByGroup"
             :unit-options="$unitOptions"
             :category-options="$categoryOptions"
             :alert-mode-options="$alertModeOptions"

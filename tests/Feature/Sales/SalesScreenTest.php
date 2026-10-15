@@ -77,6 +77,24 @@ class SalesScreenTest extends TestCase
         $this->actingAs($admin)->get(route('sales.closings.index'))->assertOk();
     }
 
+    public function test_the_sales_list_uses_the_mobile_card_layout(): void
+    {
+        $this->stock('10');
+
+        $this->actingAs($this->user(Role::SalesManager))
+            ->post(route('sales.store'), [
+                'bakery_id' => $this->bakery->getKey(),
+                'payment_method' => 'cash',
+                'items' => [['product_id' => $this->bread->getKey(), 'quantity' => 2]],
+            ]);
+
+        $this->actingAs($this->user(Role::SuperAdmin))
+            ->get(route('sales.index'))
+            ->assertOk()
+            ->assertSee('data-card-table', false)
+            ->assertSee("--dt-label-2: 'Client'", false);
+    }
+
     public function test_a_sale_can_be_recorded_from_the_screen(): void
     {
         $this->stock('10');

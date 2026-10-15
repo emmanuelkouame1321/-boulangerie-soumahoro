@@ -32,7 +32,7 @@
     </div>
 
     <x-ui.card title="Détail par produit" flush>
-        <x-ui.data-table :headers="['Produit', ['label' => 'Produit', 'align' => 'right'], ['label' => 'Vendu', 'align' => 'right'], ['label' => 'Restant', 'align' => 'right'], ['label' => 'Perdu', 'align' => 'right'], ['label' => 'Retourné', 'align' => 'right'], ['label' => 'Écart', 'align' => 'right']]">
+        <x-ui.data-table :headers="['Produit', ['label' => 'Production', 'align' => 'right'], ['label' => 'Vendu', 'align' => 'right'], ['label' => 'Restant', 'align' => 'right'], ['label' => 'Perdu', 'align' => 'right'], ['label' => 'Retourné', 'align' => 'right'], ['label' => 'Écart', 'align' => 'right']]">
             @foreach ($closing->items as $item)
                 <tr>
                     <td class="font-medium">{{ $item->product?->name ?? '—' }}</td>

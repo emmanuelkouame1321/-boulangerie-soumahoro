@@ -10,8 +10,13 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Unit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -31,14 +36,23 @@ class ProductController extends Controller
         $search = trim((string) $request->query('search', ''));
         $type = (string) $request->query('type', '');
         $category = (string) $request->query('category', '');
+        $group = (string) $request->query('group', 'products');
 
+        if (! in_array($group, ProductType::groups(), true)) {
+            $group = 'products';
+        }
+
+        // Le catalogue est scindé en deux familles (cahier §4.1) : les
+        // produits (produit fini) et les matières premières (tout le reste).
         $query = Product::query()
             ->with(['category', 'primaryUnit'])
-            ->search($search);
+            ->search($search)
+            ->whereIn('type', $this->groupTypeValues($group));
 
         $typeEnum = ProductType::tryFrom($type);
 
-        if ($typeEnum !== null) {
+        // Le filtre « type » n'affine qu'à l'intérieur du groupe courant.
+        if ($typeEnum !== null && $typeEnum->group() === $group) {
             $query->ofType($typeEnum);
         }
 
@@ -51,27 +65,89 @@ class ProductController extends Controller
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
+        /** @var array<string, string> $groupOptions */
+        $groupOptions = config('boulangerie.product_groups', []);
+
         return view('products.index', [
             'products' => $products,
             'search' => $search,
             'type' => $type,
             'category' => $category,
-            'typeOptions' => $this->typeOptions(),
+            'group' => $group,
+            'groupOptions' => $groupOptions,
+            'groupCounts' => $this->groupCounts($search, $category),
+            'typeOptions' => $this->typeOptionsForGroup($group),
             'categoryOptions' => $this->categoryOptions(),
         ]);
     }
 
-    public function create(): View
+    /**
+     * @return list<string>
+     */
+    private function groupTypeValues(string $group): array
+    {
+        return array_map(
+            static fn (ProductType $type): string => $type->value,
+            ProductType::forGroup($group),
+        );
+    }
+
+    /**
+     * Nombre de produits par famille, en respectant la recherche et la
+     * catégorie en cours — mais pas le type ni le groupe, pour comparer.
+     *
+     * @return array<string, int>
+     */
+    private function groupCounts(string $search, string $category): array
+    {
+        $counts = [];
+
+        foreach (ProductType::groups() as $group) {
+            $counts[$group] = Product::query()
+                ->search($search)
+                ->whereIn('type', $this->groupTypeValues($group))
+                ->when($category !== '', fn ($query) => $query->where('product_category_id', (int) $category))
+                ->count();
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function typeOptionsForGroup(string $group): array
+    {
+        $options = [];
+
+        foreach (ProductType::forGroup($group) as $type) {
+            $options[$type->value] = $type->label();
+        }
+
+        return $options;
+    }
+
+    public function create(Request $request): View
     {
         $this->authorize('create', Product::class);
 
+        // La famille choisie (ex. modale du catalogue) fixe le type par défaut.
+        $group = (string) $request->query('group', ProductType::FinishedGood->group());
+
+        if (! in_array($group, ProductType::groups(), true)) {
+            $group = ProductType::FinishedGood->group();
+        }
+
+        $type = $group === 'materials' ? ProductType::RawMaterial : ProductType::FinishedGood;
+
         return view('products.create', [
             'product' => new Product([
-                'type' => ProductType::RawMaterial,
+                'type' => $type,
                 'alert_mode' => 'stock_threshold',
                 'is_active' => true,
             ]),
-            'typeOptions' => $this->typeOptions(),
+            'groupOptions' => $this->groupOptions(),
+            'typesByGroup' => $this->typesByGroup(),
             'unitOptions' => $this->unitOptions(),
             'categoryOptions' => $this->categoryOptions(),
             'alertModeOptions' => $this->alertModeOptions(),
@@ -80,11 +156,70 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): RedirectResponse
     {
-        $product = Product::create($request->validated());
+        $validated = $request->validated();
 
+        // La photo est stockée avant la ligne : en cas d'échec, un fichier
+        // orphelin reste sans effet visible (aucun lien ne pointe dessus).
+        $validated['photo_path'] = $this->storePhoto($request->file('photo'));
+
+        $product = Product::create($validated);
+
+        // On revient sur la famille du produit créé pour qu'il soit visible.
         return redirect()
-            ->route('products.index')
+            ->route('products.index', ['group' => $product->type->group()])
             ->with('status', "Le produit « {$product->name} » a été créé.");
+    }
+
+    /**
+     * Suggère un code produit (SKU) dérivé du nom, utilisé par le bouton
+     * « Générer » du formulaire (cahier §4.2) : préfixe de famille + nom
+     * en majuscules (ex. `PF-BAGUETTE`, `MP-FARINE-50-KG`). Le code proposé
+     * reste vérifié à l'enregistrement (unicité).
+     */
+    public function generateSku(Request $request): JsonResponse
+    {
+        $this->authorize('create', Product::class);
+
+        $validated = $request->validate([
+            'type' => ['required', Rule::enum(ProductType::class)],
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $type = ProductType::from((string) $validated['type']);
+
+        return response()->json(['sku' => $this->suggestSku($type, (string) $validated['name'])]);
+    }
+
+    /**
+     * Code proposé : préfixe de famille suivi du nom normalisé (accents
+     * translittérés, espaces en tirets, majuscules). Un suffixe numérique
+     * n'est ajouté qu'en cas de collision (`PF-BAGUETTE-2`).
+     */
+    private function suggestSku(ProductType $type, string $name): string
+    {
+        $slug = Str::upper(Str::slug($name));
+
+        if ($slug === '') {
+            $slug = 'ARTICLE';
+        }
+
+        // Marge pour le préfixe, le tiret et un éventuel suffixe « -999 ».
+        $base = $type->skuPrefix().'-'.substr($slug, 0, 54);
+
+        if (! Product::query()->where('sku', $base)->exists()) {
+            return $base;
+        }
+
+        for ($suffix = 2; $suffix <= 999; $suffix++) {
+            $candidate = $base.'-'.$suffix;
+
+            if (! Product::query()->where('sku', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Extrêmement improbable : on garantit tout de même l'unicité.
+        return $base.'-'.Str::upper(Str::random(4));
     }
 
     public function edit(Product $product): View
@@ -93,7 +228,8 @@ class ProductController extends Controller
 
         return view('products.edit', [
             'product' => $product,
-            'typeOptions' => $this->typeOptions(),
+            'groupOptions' => $this->groupOptions(),
+            'typesByGroup' => $this->typesByGroup(),
             'unitOptions' => $this->unitOptions(),
             'categoryOptions' => $this->categoryOptions(),
             'alertModeOptions' => $this->alertModeOptions(),
@@ -102,7 +238,27 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
-        $product->update($request->validated());
+        $validated = $request->validated();
+        $previousPath = $product->photo_path;
+
+        unset($validated['photo'], $validated['remove_photo']);
+
+        // Une nouvelle image remplace l'ancienne ; à défaut, la case
+        // « Supprimer la photo » efface le fichier existant.
+        $newPath = $this->storePhoto($request->file('photo'));
+
+        if ($newPath !== null) {
+            $validated['photo_path'] = $newPath;
+        } elseif ($request->boolean('remove_photo')) {
+            $validated['photo_path'] = null;
+        }
+
+        $product->update($validated);
+
+        // Le fichier n'est retiré qu'après la mise à jour réussie.
+        if (array_key_exists('photo_path', $validated) && $validated['photo_path'] !== $previousPath) {
+            $this->forgetPhoto($previousPath);
+        }
 
         return redirect()
             ->route('products.index')
@@ -110,17 +266,57 @@ class ProductController extends Controller
     }
 
     /**
-     * @return array<string, string>
+     * Dépose une photo sur le disque public et renvoie son chemin relatif
+     * (`products/<hash>.<ext>`), ou null si aucune image n'a été envoyée.
      */
-    private function typeOptions(): array
+    private function storePhoto(?UploadedFile $file): ?string
     {
-        $options = [];
-
-        foreach (ProductType::cases() as $type) {
-            $options[$type->value] = $type->label();
+        if ($file === null) {
+            return null;
         }
 
+        return $file->store('products', 'public');
+    }
+
+    private function forgetPhoto(?string $path): void
+    {
+        if ($path !== null && $path !== '') {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function groupOptions(): array
+    {
+        /** @var array<string, string> $options */
+        $options = config('boulangerie.product_groups', []);
+
         return $options;
+    }
+
+    /**
+     * Types proposés par famille, pour le sélecteur « nature » du
+     * formulaire (la famille « produits » n'a qu'un type : produit fini).
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function typesByGroup(): array
+    {
+        $result = [];
+
+        foreach (ProductType::groups() as $group) {
+            $types = [];
+
+            foreach (ProductType::forGroup($group) as $type) {
+                $types[$type->value] = $type->label();
+            }
+
+            $result[$group] = $types;
+        }
+
+        return $result;
     }
 
     /**
